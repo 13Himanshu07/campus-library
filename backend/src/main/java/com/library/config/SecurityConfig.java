@@ -24,7 +24,7 @@ public class SecurityConfig {
     .requestMatchers(HttpMethod.GET,"/api/books/**").authenticated()
     .requestMatchers("/api/books/**","/api/members/**","/api/reports/**").hasRole("LIBRARIAN")
     .requestMatchers(HttpMethod.POST,"/api/transactions/borrow").hasRole("MEMBER")
-    .requestMatchers(HttpMethod.POST,"/api/transactions/*/return").hasRole("MEMBER")
+    .requestMatchers(HttpMethod.POST,"/api/transactions/*/return").hasRole("LIBRARIAN")
     .anyRequest().authenticated()).addFilterBefore(jwt,UsernamePasswordAuthenticationFilter.class).build();
  }
  @Bean CorsConfigurationSource cors(){var c=new CorsConfiguration();c.setAllowedOrigins(List.of(frontendUrl));c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));c.setAllowedHeaders(List.of("Authorization","Content-Type"));c.setAllowCredentials(true);var s=new UrlBasedCorsConfigurationSource();s.registerCorsConfiguration("/**",c);return s;}
