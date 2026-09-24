@@ -6,3 +6,7 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: ${DDL_AUTO:validate}
+management:
+  health:
+    mail:
+      enabled: false
