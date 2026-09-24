@@ -1,0 +1,35 @@
+server:
+  port: ${PORT:8080}
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/library?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:update}
+    open-in-view: true
+    properties:
+      hibernate:
+        format_sql: true
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+app:
+  jwt-secret: ${JWT_SECRET:local-only-change-this-secret-before-deployment-123456789}
+  jwt-expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  borrow-days: ${BORROW_DAYS:14}
+  borrow-limit: ${BORROW_LIMIT:5}
+  fine-per-day: ${FINE_PER_DAY:5}
+  reminder-days: ${REMINDER_DAYS:2}
+  bootstrap-librarian-email: ${BOOTSTRAP_LIBRARIAN_EMAIL:}
+  bootstrap-librarian-password: ${BOOTSTRAP_LIBRARIAN_PASSWORD:}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

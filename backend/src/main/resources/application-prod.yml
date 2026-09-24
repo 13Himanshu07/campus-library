@@ -1,0 +1,8 @@
+app:
+  jwt-secret: ${JWT_SECRET}
+  frontend-url: ${FRONTEND_URL}
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${DDL_AUTO:validate}
