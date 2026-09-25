@@ -7,6 +7,7 @@ public interface TransactionRepository extends JpaRepository<LibraryTransaction,
  long countByMemberIdAndStatusIn(Long memberId, Collection<LibraryTransaction.Status> statuses);
  boolean existsByBookIdAndMemberIdAndStatusIn(Long bookId,Long memberId,Collection<LibraryTransaction.Status> statuses);
  List<LibraryTransaction> findByMemberIdOrderByCreatedAtDesc(Long memberId);
+ void deleteByMemberId(Long memberId);
  List<LibraryTransaction> findByStatusIn(Collection<LibraryTransaction.Status> statuses);
  @Query("select t from LibraryTransaction t where t.returnDate is null and t.dueDate < current_date and t.status<>com.library.entity.LibraryTransaction.Status.RETURNED") List<LibraryTransaction> findOverdueOpen();
  @Query("select t from LibraryTransaction t where t.returnDate is null and t.status=com.library.entity.LibraryTransaction.Status.BORROWED and t.dueDate=:date") List<LibraryTransaction> findDueOn(@Param("date") java.time.LocalDate date);

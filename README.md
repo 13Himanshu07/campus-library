@@ -5,7 +5,8 @@ A full-stack college library management system with a React/Vite client and Java
 ## Features
 
 - Member registration, BCrypt password hashing, JWT login, profile/password updates, one-hour password reset tokens.
-- Member and librarian routes with role authorization enforced in Spring Security.
+- Member, librarian, and administrator routes with role authorization enforced in Spring Security.
+- An administrator panel to approve librarian applications and clear other user accounts.
 - Partial book search, pagination, librarian create/edit/delete, membership management.
 - Transactional borrowing and returns, database row locking for copy availability, borrowing limits, due dates, overdue fines.
 - Member history and dashboard, librarian inventory/borrowing analytics, in-app notifications, preferences, mail, scheduled reminders.
@@ -30,7 +31,7 @@ erDiagram
   USERS ||--o{ PASSWORD_RESET_TOKENS : requests
 ```
 
-No default password is shipped. Bootstrap the first librarian through environment variables.
+No default password is shipped. Bootstrap the first administrator through environment variables. Librarian applications remain pending until approved by the administrator.
 
 ## API documentation
 
@@ -44,8 +45,9 @@ Swagger UI: `http://localhost:8080/swagger-ui.html`; OpenAPI document: `/v3/api-
 | Transactions | Member `POST /api/transactions/borrow`, `POST /{id}/return`, `GET /my-history`; librarian `GET /api/transactions` |
 | Notifications | `GET /api/notifications`, `PUT /{id}/read`, `/read-all`, `DELETE /{id}`, librarian `POST /send`; `GET/PUT /preferences` |
 | Reports | Librarian `GET /api/reports/inventory`, `/borrowing`, `/popular-books`, `/active-members`, `/dashboard` |
+| Administration | Admin `GET /api/admin/librarian-applications`, `POST /{id}/approve` or `/reject`, `GET /api/admin/users/count`, confirmed `DELETE /api/admin/users` |
 
-Protected calls use `Authorization: Bearer <token>`. Registration always creates a MEMBER and ignores any role supplied by a client.
+Protected calls use `Authorization: Bearer <token>`. Public registration creates members or pending librarian applications; it cannot create administrators or active librarians.
 
 ## Requirements
 
@@ -81,13 +83,13 @@ The frontend runs at `http://localhost:5173`; the API at `http://localhost:8080`
 
 ## Environment and deployment
 
-See root `.env.example` and `frontend/.env.example`. The backend uses `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `FRONTEND_URL`, and borrowing/reminder settings. Set `JWT_SECRET` to a random value of at least 32 bytes. `FRONTEND_URL` defines the allowed CORS origin.
+See root `.env.example` and `frontend/.env.example`. The backend uses `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `FRONTEND_URL`, and borrowing/reminder settings. Set `JWT_SECRET` to a random value of at least 32 bytes. `FRONTEND_URL` defines the allowed CORS origin. Set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` privately on the backend for the initial administrator; never commit their values.
 
 - Vercel: deploy `frontend/`, set `VITE_API_URL` to the deployed backend base ending in `/api`. `vercel.json` supports client-side routing.
 - Render/Railway: deploy `backend/` as a Java 17 service, set runtime environment variables, and use managed MySQL 8.
 - Apply the SQL schema and set `DDL_AUTO=validate` in production. Do not use the development fallback JWT key.
 
-Optional bootstrap librarian variables are `BOOTSTRAP_LIBRARIAN_EMAIL` and `BOOTSTRAP_LIBRARIAN_PASSWORD` (minimum 12 characters). The account is created once if the email is not already present.
+The administrator bootstrap variables are `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` (minimum 12 characters). The account is created once if the email is not already present. The committed `.env.example` files contain placeholders only; never commit a real `.env` file or credentials.
 
 ## Testing
 
@@ -95,7 +97,7 @@ Run `cd backend && mvn test` and `cd frontend && npm run build`. The backend inc
 
 ## Default accounts and screenshots
 
-No default account credentials are included. Configure the initial librarian via bootstrap variables; members register in the app. Run the app locally to capture current screenshots. The landing page and authenticated dashboards use a responsive academic design with live API values and charts.
+No default account credentials are included. Configure the initial administrator via bootstrap variables; members register directly and librarians apply for approval. Run the app locally to capture current screenshots. The landing page and authenticated dashboards use a responsive academic design with live API values and charts.
 
 ## Future improvements
 

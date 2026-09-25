@@ -32,9 +32,9 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         value: https://campus-library-web.onrender.com
-      - key: BOOTSTRAP_LIBRARIAN_EMAIL
+      - key: BOOTSTRAP_ADMIN_EMAIL
         sync: false
-      - key: BOOTSTRAP_LIBRARIAN_PASSWORD
+      - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false
       - key: DDL_AUTO
-        value: update
+        value: validate

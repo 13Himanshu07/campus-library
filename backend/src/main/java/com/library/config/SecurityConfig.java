@@ -21,6 +21,7 @@ public class SecurityConfig {
  @Bean SecurityFilterChain filterChain(HttpSecurity http,JwtFilter jwt)throws Exception {
   return http.csrf(c->c.disable()).cors(c->c.configurationSource(cors())).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a
     .requestMatchers("/api/auth/**","/swagger-ui/**","/swagger-ui.html","/v3/api-docs/**","/actuator/health").permitAll()
+    .requestMatchers("/api/admin/**").hasRole("ADMIN")
     .requestMatchers(HttpMethod.GET,"/api/books/**").authenticated()
     .requestMatchers("/api/books/**","/api/members/**","/api/reports/**").hasRole("LIBRARIAN")
     .requestMatchers(HttpMethod.POST,"/api/transactions/borrow").hasRole("MEMBER")

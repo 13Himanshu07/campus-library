@@ -19,6 +19,6 @@ public class User {
     @Column(name="created_at", nullable=false, updatable=false) private Instant createdAt=Instant.now();
     @Column(name="updated_at", nullable=false) private Instant updatedAt=Instant.now();
     @PreUpdate void updateTimestamp(){ updatedAt=Instant.now(); }
-    public enum Role { LIBRARIAN, MEMBER }
-    public enum UserStatus { ACTIVE, DISABLED }
+    public enum Role { ADMIN, LIBRARIAN, MEMBER }
+    public enum UserStatus { ACTIVE, PENDING, DISABLED }
 }

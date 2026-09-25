@@ -11,7 +11,7 @@ import java.util.Date;
 
 @Service
 public class JwtService {
- @Value("${app.jwt-secret:local-only-change-this-secret-before-deployment-123456789}") private String secret;
+ @Value("${app.jwt-secret}") private String secret;
  @Value("${app.jwt-expiration-ms:86400000}") private long expiration;
  private SecretKey key(){ return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)); }
  public String create(User user){ return Jwts.builder().subject(user.getEmail()).claim("role",user.getRole().name()).issuedAt(new Date()).expiration(new Date(System.currentTimeMillis()+expiration)).signWith(key()).compact(); }

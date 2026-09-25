@@ -21,15 +21,15 @@ spring:
       mail.smtp.auth: ${MAIL_AUTH:false}
       mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
 app:
-  jwt-secret: ${JWT_SECRET:local-only-change-this-secret-before-deployment-123456789}
+  jwt-secret: ${JWT_SECRET}
   jwt-expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   borrow-days: ${BORROW_DAYS:14}
   borrow-limit: ${BORROW_LIMIT:5}
   fine-per-day: ${FINE_PER_DAY:5}
   reminder-days: ${REMINDER_DAYS:2}
-  bootstrap-librarian-email: ${BOOTSTRAP_LIBRARIAN_EMAIL:}
-  bootstrap-librarian-password: ${BOOTSTRAP_LIBRARIAN_PASSWORD:}
+  bootstrap-admin-email: ${BOOTSTRAP_ADMIN_EMAIL:}
+  bootstrap-admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
