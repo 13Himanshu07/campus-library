@@ -15,6 +15,18 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_AUTH
+        value: "true"
+      - key: MAIL_STARTTLS
+        value: "true"
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL

@@ -85,6 +85,10 @@ The frontend runs at `http://localhost:5173`; the API at `http://localhost:8080`
 
 See root `.env.example` and `frontend/.env.example`. The backend uses `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `FRONTEND_URL`, and borrowing/reminder settings. Set `JWT_SECRET` to a random value of at least 32 bytes. `FRONTEND_URL` defines the allowed CORS origin. Set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` privately on the backend for the initial administrator; never commit their values.
 
+### Gmail email delivery
+
+The API sends password-reset links, account notices, and borrowing/return/due-date emails through SMTP. For Gmail, enable 2-Step Verification on the sending Google account and create a Google App Password. In Render, open the `campus-library-api` service → **Environment** and set `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_AUTH=true`, `MAIL_STARTTLS=true`, `MAIL_USERNAME` to the sending Gmail address, and `MAIL_PASSWORD` to that App Password. Save changes to redeploy. Keep the App Password only in Render; never use the account's normal password or commit it to GitHub. Users can switch optional email notices on in **Profile & settings → Notification preferences**. Password-reset requests always return the same confirmation message whether the address exists or not.
+
 - Vercel: deploy `frontend/`, set `VITE_API_URL` to the deployed backend base ending in `/api`. `vercel.json` supports client-side routing.
 - Render/Railway: deploy `backend/` as a Java 17 service, set runtime environment variables, and use managed MySQL 8.
 - Apply the SQL schema and set `DDL_AUTO=validate` in production. Do not use the development fallback JWT key.
