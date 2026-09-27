@@ -89,6 +89,12 @@ See root `.env.example` and `frontend/.env.example`. The backend uses `DB_URL`, 
 - Render/Railway: deploy `backend/` as a Java 17 service, set runtime environment variables, and use managed MySQL 8.
 - Apply the SQL schema and set `DDL_AUTO=validate` in production. Do not use the development fallback JWT key.
 
+### GitHub Pages
+
+The `Deploy frontend to GitHub Pages` workflow builds and publishes the React client from `frontend/` whenever changes reach `main`. In the repository, open **Settings → Pages** and set the build source to **GitHub Actions** for the first deployment. The workflow handles the `/campus-library/` project-site path and client-side routes.
+
+GitHub Pages hosts only the static frontend. Sign-in, book data, borrowing, email, and administrator actions require the Spring Boot API and MySQL database to remain hosted separately. Once the API is deployed, add a repository Actions variable named `VITE_API_URL` with its public API base URL ending in `/api`, then rerun the Pages workflow. Do not put database credentials, mail passwords, JWT signing keys, or administrator passwords in frontend variables; anything bundled into a frontend build is public.
+
 The administrator bootstrap variables are `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` (minimum 12 characters). The account is created once if the email is not already present. The committed `.env.example` files contain placeholders only; never commit a real `.env` file or credentials.
 
 ## Testing
