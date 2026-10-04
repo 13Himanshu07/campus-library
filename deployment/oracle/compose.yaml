@@ -1,0 +1,58 @@
+services:
+  database:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in deployment/oracle/.env}
+      MYSQL_DATABASE: library_management
+      MYSQL_USER: library_app
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in deployment/oracle/.env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../../database/sample_data.sql:/docker-entrypoint-initdb.d/02-sample-data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://database:3306/library_management?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: library_app
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in deployment/oracle/.env}
+      LIBRARY_BORROW_DAYS: ${LIBRARY_BORROW_DAYS:-14}
+      LIBRARY_BORROW_LIMIT: ${LIBRARY_BORROW_LIMIT:-5}
+      LIBRARY_FINE_PER_DAY: ${LIBRARY_FINE_PER_DAY:-5.00}
+    expose:
+      - "8080"
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN in deployment/oracle/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config:

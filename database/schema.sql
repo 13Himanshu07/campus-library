@@ -1,39 +1,60 @@
-CREATE DATABASE IF NOT EXISTS library CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE library;
+CREATE DATABASE IF NOT EXISTS library_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE library_management;
+
 CREATE TABLE IF NOT EXISTS users (
- id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE,
- password VARCHAR(255) NOT NULL, phone VARCHAR(255), membership_id VARCHAR(255) UNIQUE,
- role VARCHAR(32) NOT NULL DEFAULT 'MEMBER', status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
- created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  password_hash VARCHAR(100) NOT NULL,
+  phone VARCHAR(40),
+  membership_id VARCHAR(40) NOT NULL UNIQUE,
+  role ENUM('STUDENT','LIBRARIAN','ADMIN') NOT NULL DEFAULT 'STUDENT',
+  status ENUM('ACTIVE','PENDING','DISABLED') NOT NULL DEFAULT 'ACTIVE',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS categories (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  description VARCHAR(500)
 );
 CREATE TABLE IF NOT EXISTS books (
- id BIGINT PRIMARY KEY AUTO_INCREMENT, title VARCHAR(255) NOT NULL, author VARCHAR(255) NOT NULL, isbn VARCHAR(255) NOT NULL UNIQUE,
- genre VARCHAR(255), description VARCHAR(3000), publisher VARCHAR(255), publication_year INT, total_copies INT NOT NULL, available_copies INT NOT NULL,
- cover_image_url VARCHAR(2048), archived BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  title VARCHAR(255) NOT NULL,
+  author VARCHAR(180) NOT NULL,
+  isbn VARCHAR(32) NOT NULL UNIQUE,
+  category_id BIGINT,
+  description VARCHAR(3000),
+  publisher VARCHAR(180),
+  publication_year INT,
+  total_copies INT NOT NULL DEFAULT 0,
+  available_copies INT NOT NULL DEFAULT 0,
+  archived BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_books_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+  CONSTRAINT chk_book_copies CHECK (total_copies >= 0 AND available_copies >= 0 AND available_copies <= total_copies),
+  INDEX idx_books_title (title), INDEX idx_books_author (author)
 );
-CREATE TABLE IF NOT EXISTS library_transactions (
- id BIGINT PRIMARY KEY AUTO_INCREMENT, book_id BIGINT NOT NULL, member_id BIGINT NOT NULL, borrow_date DATE NOT NULL,
- due_date DATE NOT NULL, return_date DATE, status VARCHAR(32) NOT NULL, fine_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
- created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_transaction_book FOREIGN KEY (book_id) REFERENCES books(id),
- CONSTRAINT fk_transaction_member FOREIGN KEY (member_id) REFERENCES users(id), INDEX idx_transaction_member_status (member_id,status), INDEX idx_transaction_book_status (book_id,status)
+CREATE TABLE IF NOT EXISTS book_issues (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  book_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  issue_date DATE NOT NULL,
+  due_date DATE NOT NULL,
+  return_date DATE,
+  status ENUM('ISSUED','RETURNED','OVERDUE') NOT NULL DEFAULT 'ISSUED',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_issues_book FOREIGN KEY (book_id) REFERENCES books(id),
+  CONSTRAINT fk_issues_user FOREIGN KEY (user_id) REFERENCES users(id),
+  INDEX idx_issues_user_status (user_id,status), INDEX idx_issues_due_status (due_date,status)
 );
-CREATE TABLE IF NOT EXISTS notifications (
- id BIGINT PRIMARY KEY AUTO_INCREMENT, user_id BIGINT NOT NULL, title VARCHAR(255) NOT NULL, message VARCHAR(2000) NOT NULL,
- type VARCHAR(32) NOT NULL, is_read BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
- CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, INDEX idx_notification_user_read (user_id,is_read)
-);
-CREATE TABLE IF NOT EXISTS notification_preferences (
- id BIGINT PRIMARY KEY AUTO_INCREMENT, user_id BIGINT NOT NULL UNIQUE, email_notifications BOOLEAN NOT NULL DEFAULT TRUE,
- due_date_notifications BOOLEAN NOT NULL DEFAULT TRUE, new_book_notifications BOOLEAN NOT NULL DEFAULT TRUE, overdue_notifications BOOLEAN NOT NULL DEFAULT TRUE,
- CONSTRAINT fk_preferences_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
- id BIGINT PRIMARY KEY AUTO_INCREMENT, user_id BIGINT NOT NULL, token_hash CHAR(64) NOT NULL UNIQUE, expires_at TIMESTAMP NOT NULL, used_at TIMESTAMP NULL,
- CONSTRAINT fk_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, INDEX idx_reset_token (token_hash)
-);
-CREATE TABLE IF NOT EXISTS search_history (
- id BIGINT PRIMARY KEY AUTO_INCREMENT, user_id BIGINT NOT NULL, search_query VARCHAR(255) NOT NULL,
- created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
- CONSTRAINT fk_search_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
- INDEX idx_search_user_created (user_id,created_at)
+CREATE TABLE IF NOT EXISTS fines (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  issue_id BIGINT NOT NULL UNIQUE,
+  amount DECIMAL(10,2) NOT NULL,
+  paid BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  paid_at TIMESTAMP NULL,
+  CONSTRAINT fk_fines_issue FOREIGN KEY (issue_id) REFERENCES book_issues(id),
+  INDEX idx_fines_paid (paid)
 );
