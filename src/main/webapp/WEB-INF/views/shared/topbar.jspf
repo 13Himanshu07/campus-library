@@ -1,2 +1,6 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<header class="topbar"><div><span class="eyebrow">CAMPUS LIBRARY</span><h1>${pageTitle}</h1></div><div class="topbar-right"><span class="today"><c:out value="${sessionScope.userName}"/></span><span class="avatar small-avatar"><c:out value="${sessionScope.userName.substring(0,1)}"/></span></div></header>
+<header class="topbar">
+  <button class="mobile-menu icon-btn" type="button" aria-label="Open navigation" data-sidebar-open>&#9776;</button>
+  <div class="crumb"><span class="crumb-mark" aria-hidden="true">&#9636;</span><span>Library workspace</span><span class="crumb-dot">/</span><b><c:choose><c:when test="${sessionScope.role == 'ADMIN'}">Administrator</c:when><c:when test="${sessionScope.role == 'LIBRARIAN'}">Librarian</c:when><c:otherwise>Member</c:otherwise></c:choose> portal</b></div>
+  <div class="topbar-user"><span class="online-dot"></span><span>Service online</span></div>
+</header>

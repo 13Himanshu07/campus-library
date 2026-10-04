@@ -1,2 +1,14 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<div class="app-shell"><%@ include file="sidebar.jspf" %><main class="main-area"><%@ include file="topbar.jspf" %><div class="page-content"><c:if test="${not empty flashMessage}"><div class="alert success"><c:out value="${flashMessage}"/></div></c:if>
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Campus Library · <c:out value="${pageTitle}" default="Library workspace"/></title>
+  <%@ include file="head.jspf" %>
+</head>
+<body>
+<div class="app-shell">
+  <%@ include file="sidebar.jspf" %>
+  <main class="main-area">
+    <%@ include file="topbar.jspf" %>
+    <div class="page-wrap">
+      <c:if test="${not empty flashMessage}"><div class="notice success"><span><c:out value="${flashMessage}"/></span></div></c:if>

@@ -1,2 +1,38 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<aside class="sidebar"><a class="brand" href="${pageContext.request.contextPath}/app/dashboard"><span class="brand-mark">L</span><span>Campus Library<small>COLLECTION & CIRCULATION</small></span></a><div class="side-label">YOUR LIBRARY</div><nav class="side-nav"><a href="${pageContext.request.contextPath}/app/dashboard">▦ <span>Overview</span></a><a href="${pageContext.request.contextPath}/app/books">▤ <span>Browse books</span></a><c:if test="${sessionScope.role == 'STUDENT'}"><a href="${pageContext.request.contextPath}/app/my-books">▣ <span>My books</span></a><a href="${pageContext.request.contextPath}/app/history">◷ <span>History</span></a><a href="${pageContext.request.contextPath}/app/fines">₹ <span>My fines</span></a><a href="${pageContext.request.contextPath}/app/profile">◎ <span>Profile</span></a></c:if><c:if test="${sessionScope.role == 'LIBRARIAN' || sessionScope.role == 'ADMIN'}"><div class="side-label side-label-gap">LIBRARY DESK</div><a href="${pageContext.request.contextPath}/librarian/issues">⇄ <span>Transactions</span></a><a href="${pageContext.request.contextPath}/librarian/users">♙ <span>Members</span></a><a href="${pageContext.request.contextPath}/librarian/fines">₹ <span>Fines</span></a><a href="${pageContext.request.contextPath}/librarian/categories">◇ <span>Categories</span></a><a href="${pageContext.request.contextPath}/librarian/books/add">＋ <span>Add a book</span></a></c:if><c:if test="${sessionScope.role == 'ADMIN'}"><a href="${pageContext.request.contextPath}/admin/dashboard">⚙ <span>Administration</span></a><a href="${pageContext.request.contextPath}/admin/applications">✓ <span>Applications</span></a></c:if></nav><div class="side-bottom"><span class="avatar"><c:out value="${sessionScope.userName.substring(0,1)}"/></span><div class="account-name"><b><c:out value="${sessionScope.userName}"/></b><small><c:out value="${sessionScope.role}"/></small></div><form method="post" action="${pageContext.request.contextPath}/logout"><input type="hidden" name="csrfToken" value="${sessionScope.csrfToken}"/><button class="logout" title="Sign out">↗</button></form></div></aside>
+<aside class="sidebar" id="library-sidebar">
+  <div class="brand">
+    <a class="brand-icon" href="${pageContext.request.contextPath}/app/dashboard" aria-label="Campus Library home">&#9636;</a>
+    <div><b>Campus Library</b><small>Knowledge, shared.</small></div>
+    <button class="mobile-close" type="button" aria-label="Close navigation" data-sidebar-close>&#215;</button>
+  </div>
+  <div class="nav-label">YOUR LIBRARY</div>
+  <nav aria-label="Library navigation">
+    <a class="nav-link ${pageTitle == 'Your reading desk' || pageTitle == 'Library overview' || pageTitle == 'Administrator overview' ? 'active' : ''}" href="${pageContext.request.contextPath}${sessionScope.role == 'ADMIN' ? '/admin/dashboard' : (sessionScope.role == 'LIBRARIAN' ? '/librarian/dashboard' : '/app/dashboard')}"><span class="nav-icon">&#9638;</span><span>Overview</span></a>
+    <a class="nav-link ${pageTitle == 'Browse the collection' ? 'active' : ''}" href="${pageContext.request.contextPath}/app/books"><span class="nav-icon">&#8981;</span><span>Browse books</span></a>
+    <c:if test="${sessionScope.role == 'STUDENT'}">
+      <a class="nav-link ${pageTitle == 'Books with you' ? 'active' : ''}" href="${pageContext.request.contextPath}/app/my-books"><span class="nav-icon">&#9635;</span><span>My books</span></a>
+      <a class="nav-link ${pageTitle == 'Borrowing history' ? 'active' : ''}" href="${pageContext.request.contextPath}/app/history"><span class="nav-icon">&#9719;</span><span>History</span></a>
+      <a class="nav-link ${pageTitle == 'Fines' ? 'active' : ''}" href="${pageContext.request.contextPath}/app/fines"><span class="nav-icon">&#8377;</span><span>My fines</span></a>
+      <a class="nav-link ${pageTitle == 'Profile & settings' ? 'active' : ''}" href="${pageContext.request.contextPath}/app/profile"><span class="nav-icon">&#9678;</span><span>Profile &amp; settings</span></a>
+    </c:if>
+    <c:if test="${sessionScope.role == 'LIBRARIAN' || sessionScope.role == 'ADMIN'}">
+      <div class="nav-label">LIBRARY DESK</div>
+      <a class="nav-link ${pageTitle == 'Transactions' ? 'active' : ''}" href="${pageContext.request.contextPath}/librarian/issues"><span class="nav-icon">&#8644;</span><span>Transactions</span></a>
+      <a class="nav-link ${pageTitle == 'Members' ? 'active' : ''}" href="${pageContext.request.contextPath}/librarian/users"><span class="nav-icon">&#9817;</span><span>Members</span></a>
+      <a class="nav-link ${pageTitle == 'Fines' ? 'active' : ''}" href="${pageContext.request.contextPath}/librarian/fines"><span class="nav-icon">&#8377;</span><span>Fines</span></a>
+      <a class="nav-link ${pageTitle == 'Categories' ? 'active' : ''}" href="${pageContext.request.contextPath}/librarian/categories"><span class="nav-icon">&#9671;</span><span>Categories</span></a>
+      <a class="nav-link ${pageTitle == 'Add a book' || pageTitle == 'Edit book' ? 'active' : ''}" href="${pageContext.request.contextPath}/librarian/books/add"><span class="nav-icon">&#65291;</span><span>Add a book</span></a>
+    </c:if>
+    <c:if test="${sessionScope.role == 'ADMIN'}">
+      <div class="nav-label">ADMINISTRATION</div>
+      <a class="nav-link ${pageTitle == 'Librarian applications' ? 'active' : ''}" href="${pageContext.request.contextPath}/admin/applications"><span class="nav-icon">&#10003;</span><span>Applications</span></a>
+    </c:if>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="profile-mini">
+      <span class="avatar"><c:out value="${sessionScope.userName.substring(0,1)}"/></span>
+      <div class="profile-mini-text"><b><c:out value="${sessionScope.userName}"/></b><small><c:out value="${sessionScope.role}"/></small></div>
+      <form method="post" action="${pageContext.request.contextPath}/logout"><input type="hidden" name="csrfToken" value="${sessionScope.csrfToken}"/><button class="icon-btn" title="Sign out" aria-label="Sign out">&#8599;</button></form>
+    </div>
+  </div>
+</aside>

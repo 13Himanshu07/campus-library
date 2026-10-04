@@ -8,6 +8,11 @@ import java.sql.SQLException;
 public final class DBConnection {
     private DBConnection() { }
     public static Connection getConnection() throws SQLException {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("MySQL JDBC driver not found", e);
+        }
         String url=setting("DB_URL","jdbc:mysql://localhost:3306/library_management?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true");
         String user=setting("DB_USERNAME","root");
         String password=setting("DB_PASSWORD","");
