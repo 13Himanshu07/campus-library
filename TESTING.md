@@ -41,4 +41,40 @@ Start MySQL, import `database/schema.sql` and `database/sample_data.sql`, config
 - [ ] Submit an authenticated POST without a valid CSRF token; verify HTTP 403.
 - [ ] Stop MySQL and submit a database-backed request; verify a safe error page and a logged server-side exception.
 
-Record actual results and the MySQL/Tomcat versions in this file before a live demonstration.
+## Verified environment
+
+- Java: 26.0.2
+- Maven: 3.9.16
+- MySQL Community Server: 8.0.46
+- Apache Tomcat: 10.1.60
+- Packaging: WAR
+- Application URL: http://localhost:8080/campus-library/
+
+## Verified automated results
+
+- `mvn clean package`: BUILD SUCCESS
+- `mvn test`: 4 tests passed, 0 failures, 0 errors, 0 skipped
+- JSP compilation check: 0 errors
+- MySQL Connector/J included in the generated WAR
+
+## Verified manual workflows
+
+- Student login and role-based dashboard: PASS
+- Student book browsing and search: PASS
+- Student book issue/request: PASS
+- My Books and borrowing history: PASS
+- Student fines page: PASS
+- Librarian dashboard: PASS
+- Librarian add/edit/remove book: PASS
+- Librarian category management: PASS
+- Librarian member management: PASS
+- Librarian issue and return workflow: PASS
+- Admin login and dashboard: PASS
+- Admin applications page: PASS
+- Authentication and authorization flows: PASS
+- UTF-8 character and icon rendering: PASS
+- Database-backed transactions: PASS
+
+## Final verification
+
+The application was deployed to Apache Tomcat 10.1.60 and tested through the browser after the final UI, UTF-8, and JDBC connection fixes. The tested Java Web version is committed to the `main` branch.

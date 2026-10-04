@@ -173,13 +173,23 @@ See `RUBRIC_MAPPING.md` for exact source evidence against each mark category.
 
 ## Screenshots
 
-No screenshots are currently included. Capture the student, librarian, and administrator views from a running Tomcat/MySQL deployment before adding them here.
+### Campus Library Landing Page
+
+![Campus Library Landing Page](screenshots/landing-page.png)
+
+### Librarian Dashboard
+
+![Librarian Dashboard](screenshots/librarian-dashboard.png)
+
+### Browse Books and Search
+
+![Browse Books and Search](screenshots/browse-books.png)
 
 ## Future Enhancements
 
 - Automated JDBC integration tests against a disposable MySQL database.
 - Notification delivery and richer report filters.
-- Add verified screenshots and live deployment instructions after testing the target hosting environment.
+- Add optional production deployment documentation for a future hosting environment.
 
 ## Testing
 
