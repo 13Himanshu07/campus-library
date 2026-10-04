@@ -6,5 +6,7 @@ target/
 !.env.example
 !**/.env.example
 *.log
+*.class
+*.war
 .idea/
 .vscode/

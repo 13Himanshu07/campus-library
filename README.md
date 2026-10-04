@@ -1,100 +1,155 @@
 # Campus Library Management System
 
-A Java 17 web application for a college library. Students can register, search the catalog, request available books, review due dates and history, and see fines. Librarians manage books, categories, student accounts, returns, and fines.
+## Project Overview
 
-## Architecture
+Campus Library is a Java 17 web application for managing a college library catalog, member accounts, book circulation, and overdue fines. It is built as a traditional Java Web application for evaluation of Java, JDBC, Servlet, and JSP concepts.
 
-The application follows MVC with a Servlet controller layer, service interfaces for business rules, JDBC DAOs for persistence, and JSP/JSTL views:
+## Problem Statement
+
+Manual library records make it difficult to find books, track copies and due dates, manage member access, and calculate overdue charges consistently. The system centralizes these workflows and records them in a relational database.
+
+## Proposed Solution
+
+The application uses MVC with JSP views, Jakarta Servlet controllers, service interfaces for business rules, DAO interfaces with direct JDBC implementations, and MySQL persistence. It packages as a WAR for Apache Tomcat; it is not a standalone executable.
 
 ```text
-Browser → JSP / HTML / CSS / JavaScript → Jakarta Servlets → Service interfaces → JDBC DAO → MySQL
+Browser → JSP / HTML / CSS / JavaScript → Jakarta Servlets → Service layer → DAO layer → JDBC → MySQL
 ```
-
-The deployable artifact is `target/campus-library.war`, intended for Apache Tomcat 10.1 or newer. The application does not require a framework runtime.
-
-## Technologies
-
-- Java 17
-- Jakarta Servlet 6, JSP 3.1, JSTL 3
-- JDBC with MySQL Connector/J and `PreparedStatement`
-- MySQL 8
-- Maven WAR packaging
-- Apache Tomcat 10.1+
-- HTML, CSS, JavaScript, BCrypt password hashing
 
 ## Features
 
-- Student registration and sign-in; optional librarian applications with administrator approval; BCrypt password hashes; role-based access; HttpSession login and logout.
-- Book catalog search by title, author, ISBN, or category; category organization and copy availability.
-- Librarian book add/edit/archive, member account management, physical return recording, and fine payment recording.
-- Student borrowing with a five-book limit, duplicate-loan prevention, 14-day due dates, and ₹5/day late fines.
-- Student current loans, due dates, borrowing history, profile, and fines.
-- Database-backed dashboard totals for catalog, available copies, loans, overdue books, students, and unpaid fines.
-- Prepared statements throughout; explicit JDBC transactions and row locks for issue/return flows; CSRF tokens on authenticated forms.
-- Responsive dashboard UI, shared JSP includes, validation and error views.
+- Student registration, login, profile updates, password changes, borrowing history, and fine viewing.
+- Optional librarian applications with administrator approval.
+- Search the catalog by title, author, ISBN, or category.
+- Librarian book and category management, member account management, returns, and fine payment recording.
+- Five-book borrowing limit, duplicate-loan prevention, 14-day due dates, and configurable late fines (default ₹5/day).
+- Dashboard totals for catalog, available copies, active loans, overdue books, students, pending librarian applications, and unpaid fines.
+- BCrypt password hashes, role-based access, session rotation, CSRF protection on authenticated POST forms, and responsive pages.
 
-## Project layout
+## User Roles
+
+| Role | Main capabilities |
+|---|---|
+| Student | Browse/search, borrow eligible books, view active loans/history/fines, manage profile and password. |
+| Librarian | Manage books/categories/members, record returns, review circulation and fines. |
+| Administrator | Access librarian workflows and approve or reject librarian applications. |
+
+## Technology Stack
+
+- Java 17; Jakarta Servlet 6; JSP 3.1; JSTL 3 and Expression Language.
+- JDBC with MySQL Connector/J; MySQL 8 schema.
+- Maven WAR packaging; Apache Tomcat 10.1+.
+- HTML, CSS, and JavaScript for presentation and browser interactions.
+- BCrypt for password hashing.
+
+## System Architecture
+
+- **Model:** Encapsulated domain types for users, books, categories, issues, and fines.
+- **Servlet/controller:** Handles HTTP requests, calls services, and forwards request data to JSP views.
+- **Service:** Validates input and applies account, catalog, circulation, and fine rules.
+- **DAO:** Defines persistence contracts; implementations use SQL and JDBC directly.
+- **Database:** Stores related records with primary keys, foreign keys, unique constraints, checks, and indexes.
+
+## Project Structure
 
 ```text
-database/                         MySQL schema, demo data, reset script
-src/main/java/com/library/model   Encapsulated domain objects and role types
+database/                         schema, sample data, reset script
+src/main/java/com/library/model   domain models
 src/main/java/com/library/dao     DAO interfaces and JDBC implementations
-src/main/java/com/library/service Service interfaces and business rules
+src/main/java/com/library/service service interfaces and implementations
 src/main/java/com/library/servlet HttpServlet controllers
-src/main/java/com/library/filter  Authentication, authorization, and CSRF filters
-src/main/java/com/library/util    JDBC connection, password, and validation utilities
-src/main/webapp                   Public JSPs, protected JSP/JSTL views, CSS, web.xml
-RUBRIC_MAPPING.md                 File-by-file mapping to the Review 1 rubric
-TESTING.md                        Automated and manual verification checklist
+src/main/java/com/library/filter  authentication, authorization, CSRF filters
+src/main/java/com/library/exception custom application exceptions
+src/main/java/com/library/util    JDBC connection, password, validation utilities
+src/main/webapp                   public JSPs, protected views, CSS, JavaScript, web.xml
+src/test/java                     Java behavior and JSP compilation checks
+pom.xml                            Maven WAR build
+RUBRIC_MAPPING.md                  source-file mapping to the college rubric
+TESTING.md                         automated and manual verification checklist
 ```
 
-## Database setup
+## Database Design
 
-1. Install and start MySQL 8. Create a database user with permission to create/read/write the `library_management` schema, or use a local development account.
-2. Import the schema and optional demo data:
+`database/schema.sql` creates five related tables:
 
-   ```bash
-   mysql -u root -p < database/schema.sql
-   mysql -u root -p < database/sample_data.sql
-   ```
+| Table | Purpose |
+|---|---|
+| `users` | Student, librarian, and administrator accounts and status. |
+| `categories` | Book categories. |
+| `books` | Catalog details, category relationship, copy counts, and archive state. |
+| `book_issues` | Borrower, book, issue/due/return dates, and circulation status. |
+| `fines` | Fine amount and payment state for a returned issue. |
 
-3. Configure environment variables before starting Tomcat:
+The schema declares primary and foreign keys, unique email/membership/ISBN/category values, copy-count validation, and indexes for catalog and loan lookups. Review the SQL before applying it to an existing database. `database/reset_database.sql` is destructive: it drops and recreates `library_management`.
 
-   ```text
-   DB_URL=jdbc:mysql://localhost:3306/library_management?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
-   DB_USERNAME=library_app
-   DB_PASSWORD=your-local-password
-   ```
+## JDBC Implementation
 
-`DB_URL` defaults to a local `library_management` database. Set a private `DB_PASSWORD`; credentials are not stored in Java source or JSPs. The schema has `users`, `categories`, `books`, `book_issues`, and `fines`, with foreign keys, uniqueness rules, copy-count checks, and lookup indexes.
+`src/main/java/com/library/util/DBConnection.java` opens connections through `DriverManager`. DAO implementations use `Connection`, `PreparedStatement`, `ResultSet`, `SQLException`, and try-with-resources. In `IssueDAOImpl`, issue and return operations disable auto-commit, lock relevant rows, update loan/inventory/fine records, commit on success, and roll back on failure.
 
-Optional circulation settings are `LIBRARY_BORROW_DAYS` (default `14`), `LIBRARY_BORROW_LIMIT` (default `5`), and `LIBRARY_FINE_PER_DAY` (default `5.00`).
+## Servlet Implementation
 
-## JDBC and transaction handling
+The controllers extend `HttpServlet` through `BaseServlet` and use `@WebServlet` mappings. They call service interfaces and forward data to JSPs; business policy is kept in services and persistence in DAOs. `WEB-INF/web.xml` configures the welcome page, session timeout, and error pages.
 
-`DBConnection` obtains a `java.sql.Connection` with `DriverManager`. DAO implementations use `PreparedStatement`, `ResultSet`, `SQLException`, and try-with-resources. `IssueDAOImpl` wraps checkout and return in explicit `setAutoCommit(false)`, `commit`, and rollback handling. Checkout locks the selected book row (`FOR UPDATE`) before decrementing inventory; return updates the issue, inventory, and fine record in one transaction.
+## JSP Frontend
 
-## Servlet, JSP, and security flow
+`index.jsp`, `login.jsp`, and `register.jsp` are public entry pages. Authenticated pages are under `WEB-INF/views/` for student, librarian, administrator, shared, and error views. JSPs use JSTL and EL rather than Java scriptlets. Shared CSS is in `src/main/webapp/assets/css/`; confirmation behavior is in `src/main/webapp/assets/js/app.js`.
 
-`@WebServlet` classes receive browser requests, call a service interface, set request attributes, and forward to JSPs under `WEB-INF/views`. JSPs use JSTL and Expression Language for rendering; they contain no Java scriptlets. `web.xml` declares the welcome page, session timeout, and error pages.
+## Authentication and Authorization
 
-After login, the servlet rotates the session ID and stores the user, role, and dashboard destination in `HttpSession`. `AuthenticationFilter` protects authenticated routes; `AuthorizationFilter` restricts librarian/admin paths; `CsrfFilter` checks session-bound tokens on authenticated POST requests. Logout invalidates the session. Passwords are BCrypt hashes.
+Successful login stores the user ID, display name, role, and dashboard view in `HttpSession`, then rotates the session ID. `AuthenticationFilter` requires a session for protected routes; `AuthorizationFilter` restricts librarian and administrator routes. `CsrfFilter` validates session-bound tokens on authenticated POST requests. Logout invalidates the session. Passwords are stored as BCrypt hashes.
 
-## Build and run
+## Requirements
 
-Requirements: JDK 17, Maven 3.9+, MySQL 8, and Tomcat 10.1+.
+- JDK 17
+- Maven 3.9+
+- MySQL 8
+- Apache Tomcat 10.1+
+
+## Database Setup
+
+Create a MySQL account with privileges for the application schema, then import the schema and (optionally) sample data:
+
+```bash
+mysql -u root -p < database/schema.sql
+mysql -u root -p < database/sample_data.sql
+```
+
+## Configuration
+
+Set environment variables in the process that starts Tomcat. Do not commit real credentials.
+
+```text
+DB_URL=jdbc:mysql://localhost:3306/library_management?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+DB_USERNAME=library_app
+DB_PASSWORD=your-local-password
+LIBRARY_BORROW_DAYS=14
+LIBRARY_BORROW_LIMIT=5
+LIBRARY_FINE_PER_DAY=5.00
+```
+
+The first three variables configure JDBC. Circulation variables are optional and default to the values shown. For a hosted MySQL service, use its supplied host, database name, TLS options, username, and password.
+
+## Running the Project
+
+Package the WAR:
 
 ```bash
 mvn clean package
 ```
 
-Copy `target/campus-library.war` to Tomcat's `webapps/` directory and start Tomcat. The app is deployed as `/campus-library`; copy it as `ROOT.war` to use `/`. Configure the three database environment variables in Tomcat's service environment before starting it. Open `http://localhost:8080/campus-library/`.
+Copy `target/campus-library.war` to Tomcat's `webapps/` directory and start Tomcat. The context path is `/campus-library`; rename it to `ROOT.war` to deploy at `/`. With the default local port, open `http://localhost:8080/campus-library/`.
 
-For local development, set those environment variables and use Tomcat's deployment directory or your IDE's Tomcat 10.1 integration. The WAR is not a standalone executable.
+## Maven Build
 
-### Demo accounts
+`mvn clean package` compiles Java sources, runs automated tests (including JSP compilation), and creates `target/campus-library.war`. Generated `target/`, `.class`, and `.war` files are ignored by Git.
 
-After importing `database/sample_data.sql`:
+## Tomcat Deployment
+
+Use Tomcat 10.1 or newer, configure database/circulation environment variables, and deploy the WAR. The repository includes an Oracle Cloud Compose example in `deployment/oracle/`; it is optional. Deployment-specific instructions are in that directory's README.
+
+## Demo Credentials
+
+After loading `database/sample_data.sql`, use these local-only accounts:
 
 | Role | Email | Password |
 |---|---|---|
@@ -102,12 +157,30 @@ After importing `database/sample_data.sql`:
 | Librarian | `librarian@library.local` | `LibraryDemo9!` |
 | Administrator | `admin@library.local` | `LibraryDemo9!` |
 
-Demo credentials are for local evaluation only. Change or remove them before exposing a deployment publicly. The sample SQL inserts only demonstration accounts and catalog rows.
+Change or remove these demonstration accounts before making a deployment public.
 
-## Deploy to Tomcat
+## Core Java Concepts
 
-For the included Oracle Cloud Compose example, see [`deployment/oracle/README.md`](deployment/oracle/README.md). The container runs Tomcat and connects to a separate MySQL service; Caddy can provide HTTPS. For a managed Tomcat host, upload the WAR and configure the database environment variables in its service settings.
+- **Encapsulation:** private state and controlled accessors in model classes.
+- **Inheritance and polymorphism:** `Student` and `Librarian` extend abstract `User` and override role-specific behavior.
+- **Abstraction and interfaces:** DAO and service interfaces separate contracts from implementations.
+- **Collections and generics:** typed lists and maps carry domain data and dashboard statistics.
+- **Enums:** account roles/statuses and issue statuses model constrained states.
+- **Exceptions:** custom authentication, validation, availability, lookup, and database exceptions handle application failures.
+- **Constructors and overloading:** model/service construction and validation overloads are used in live application paths.
 
-## Tests and rubric
+See `RUBRIC_MAPPING.md` for exact source evidence against each mark category.
 
-Run `mvn test` for the included unit tests. Use [`TESTING.md`](TESTING.md) for the database-backed manual workflow checklist. [`RUBRIC_MAPPING.md`](RUBRIC_MAPPING.md) identifies the files that visibly demonstrate each rubric requirement.
+## Screenshots
+
+No screenshots are currently included. Capture the student, librarian, and administrator views from a running Tomcat/MySQL deployment before adding them here.
+
+## Future Enhancements
+
+- Automated JDBC integration tests against a disposable MySQL database.
+- Notification delivery and richer report filters.
+- Add verified screenshots and live deployment instructions after testing the target hosting environment.
+
+## Testing
+
+Run `mvn clean package` for automated checks. Follow `TESTING.md` for database-backed and browser workflows; those manual checks require a configured MySQL database and running Tomcat instance.

@@ -18,10 +18,12 @@ Start MySQL, import `database/schema.sql` and `database/sample_data.sql`, config
 ## Manual web and JDBC checklist
 
 - [ ] Register a student with valid details; verify BCrypt hash, role, and membership ID in `users`.
+- [ ] Submit a librarian application; verify it is pending, cannot sign in while pending, and an administrator can approve or reject it.
 - [ ] Sign in with valid credentials; verify role-aware dashboard and session attributes.
 - [ ] Sign in with an invalid password; verify generic rejection and no authenticated session.
 - [ ] Submit a librarian POST without a session; verify redirect to login.
 - [ ] Sign out; verify session invalidation and protected-page redirect.
+- [ ] Change a password while signed in; verify the new BCrypt hash works and the old password no longer authenticates.
 - [ ] Allow a session to expire (30 minutes idle); verify protected pages require sign-in again.
 - [ ] Add a book; verify category, copy totals, and available totals.
 - [ ] Edit a book; verify metadata and copy-count constraints while copies are on loan.

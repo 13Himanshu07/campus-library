@@ -13,7 +13,7 @@ This mapping credits only behavior visibly implemented in this source tree. Fram
 | `src/main/java/com/library/dao/impl/IssueDAOImpl.java` | Checkout/return atomicity and stock consistency. |
 | `src/main/java/com/library/servlet/` and `src/main/webapp/WEB-INF/views/` | Student and librarian workflows and role-appropriate screens. |
 
-Coverage: core catalog, account, borrowing, return, fine, and librarian-application approval workflows are implemented. Remaining scope includes notification delivery and richer report filters from the previous version.
+Coverage: core catalog, account, borrowing, return, fine, and librarian-application approval workflows are implemented. Notification delivery and richer report filters are optional future enhancements and are not claimed as implemented.
 
 ## 2. Core Java Concepts — 10 marks
 
