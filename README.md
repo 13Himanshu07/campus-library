@@ -86,6 +86,12 @@ The schema declares primary and foreign keys, unique email/membership/ISBN/categ
 
 `src/main/java/com/library/util/DBConnection.java` opens connections through `DriverManager`. DAO implementations use `Connection`, `PreparedStatement`, `ResultSet`, `SQLException`, and try-with-resources. In `IssueDAOImpl`, issue and return operations disable auto-commit, lock relevant rows, update loan/inventory/fine records, commit on success, and roll back on failure.
 
+## Multithreading & Synchronization
+
+`LibraryContextListener` starts a bounded `LibraryTaskExecutor` when the web application starts and shuts it down when the application stops. Its scheduled `FineCalculationTask` runs daily in the background, recalculates fines for overdue loans through `IssueService`, and persists them through `FineService`/`FineDAO`. Task failures are logged per loan so one bad record does not stop the remaining calculations. The overdue-fine upsert only applies while the loan remains overdue and active; already-paid fines retain their paid state.
+
+`IssueServiceImpl` uses a fixed set of Java monitor locks, selected by book ID, around issue and return operations. This coordinates competing requests within one application instance without creating an unbounded lock per book. `IssueDAOImpl` still uses transactional database row locks and atomic inventory updates, which provide the authoritative protection across multiple application instances and preserve rollback behavior.
+
 ## Servlet Implementation
 
 The controllers extend `HttpServlet` through `BaseServlet` and use `@WebServlet` mappings. They call service interfaces and forward data to JSPs; business policy is kept in services and persistence in DAOs. `WEB-INF/web.xml` configures the welcome page, session timeout, and error pages.
