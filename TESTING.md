@@ -78,3 +78,13 @@ Start MySQL, import `database/schema.sql` and `database/sample_data.sql`, config
 ## Final verification
 
 The application was deployed to Apache Tomcat 10.1.60 and tested through the browser after the final UI, UTF-8, and JDBC connection fixes. The tested Java Web version is committed to the `main` branch.
+
+## Current MySQL integration coverage
+
+`MySqlCirculationIntegrationTest` is a JUnit 5/Testcontainers suite against disposable MySQL 8. It covers parallel attempts to borrow the final copy, successful and duplicate returns, rollback on injected inventory failures, and same-day/3-day/10-day fine outcomes. Run it with `mvn -Dtest=MySqlCirculationIntegrationTest test` on a machine with Docker. The normal `mvn clean test` includes it; without Docker it is explicitly skipped (four skipped tests), while unit and JSP checks still run.
+
+Do not point these tests at development or production data. The container creates an isolated schema, applies Flyway migrations, seeds fixtures before each test, and is discarded afterwards.
+
+## Migration and security notes
+
+Flyway resources are in `src/main/resources/db/migration`. Fresh DBs apply V1 through V3; an existing non-empty schema is baselined at v1 and receives only later migrations. Back up and compare schema before first deployment; startup stops when migration fails. Production uses separate migration and app users from `database/production_users.sql`, with TLS required for MySQL accounts. Production HTTPS enforcement and cookie settings are environment controlled as described in README.

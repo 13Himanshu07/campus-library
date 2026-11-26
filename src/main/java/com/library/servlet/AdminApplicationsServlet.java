@@ -13,7 +13,8 @@ public class AdminApplicationsServlet extends BaseServlet {
         takeFlash(request);request.getRequestDispatcher("/WEB-INF/views/admin/applications.jsp").forward(request,response);
     }
     @Override protected void doPost(HttpServletRequest request,HttpServletResponse response)throws IOException{
-        try{boolean approve="approve".equals(request.getParameter("decision"));service(UserService.class).decideLibrarianApplication(paramId(request,"id"),approve);flash(request,approve?"Librarian account approved.":"Application declined.");response.sendRedirect(request.getContextPath()+"/admin/applications");}
-        catch(RuntimeException e){try{error(request,response,e);}catch(Exception ignored){response.sendError(500);}}
+        Long actor=request.getSession(false)==null?null:(Long)request.getSession().getAttribute("userId");long id=-1;
+        try{id=paramId(request,"id");boolean approve="approve".equals(request.getParameter("decision"));service(UserService.class).decideLibrarianApplication(id,approve);com.library.util.AuditLog.record(actor,approve?"LIBRARIAN_APPROVE":"LIBRARIAN_REJECT","USER",Long.toString(id),true);flash(request,approve?"Librarian account approved.":"Application declined.");response.sendRedirect(request.getContextPath()+"/admin/applications");}
+        catch(RuntimeException e){com.library.util.AuditLog.record(actor,"LIBRARIAN_APPLICATION_DECISION","USER",id<0?null:Long.toString(id),false);try{error(request,response,e);}catch(Exception ignored){response.sendError(500);}}
     }
 }

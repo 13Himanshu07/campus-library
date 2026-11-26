@@ -37,7 +37,8 @@ Browser → JSP / HTML / CSS / JavaScript → Jakarta Servlets → Service layer
 ## Technology Stack
 
 - Java 17; Jakarta Servlet 6; JSP 3.1; JSTL 3 and Expression Language.
-- JDBC with MySQL Connector/J; MySQL 8 schema.
+- JDBC with MySQL Connector/J and a process-wide HikariCP connection pool; Flyway-managed MySQL 8 schema.
+- SLF4J/Logback operational logging, audit records, and Testcontainers-backed MySQL integration tests.
 - Maven WAR packaging; Apache Tomcat 10.1+.
 - HTML, CSS, and JavaScript for presentation and browser interactions.
 - BCrypt for password hashing.
@@ -84,7 +85,7 @@ The schema declares primary and foreign keys, unique email/membership/ISBN/categ
 
 ## JDBC Implementation
 
-`src/main/java/com/library/util/DBConnection.java` opens connections through `DriverManager`. DAO implementations use `Connection`, `PreparedStatement`, `ResultSet`, `SQLException`, and try-with-resources. In `IssueDAOImpl`, issue and return operations disable auto-commit, lock relevant rows, update loan/inventory/fine records, commit on success, and roll back on failure.
+`src/main/java/com/library/util/DBConnection.java` owns one lazily initialized HikariCP pool. Every DAO obtains a pooled connection through `DBConnection.getConnection()` and closes it with try-with-resources. Pool size and timeouts are configurable with `DB_POOL_*` variables. `IssueDAOImpl` uses transactions and row locks for checkout and return; database locks protect concurrency across application instances.
 
 ## Multithreading & Synchronization
 
@@ -113,11 +114,15 @@ Successful login stores the user ID, display name, role, and dashboard view in `
 
 ## Database Setup
 
-Create a MySQL account with privileges for the application schema, then import the schema and (optionally) sample data:
+For local development, create the database and a restricted account, then let Flyway apply migrations at webapp startup. To load optional demo data, run `database/sample_data.sql` after migration. Do not run the destructive `database/reset_database.sql` against valuable data:
 
 ```bash
-mysql -u root -p < database/schema.sql
-mysql -u root -p < database/sample_data.sql
+mysql -u root -p -e "CREATE DATABASE library_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# Replace local password placeholders, then create restricted accounts:
+mysql -u root -p library_management < database/local_users.sql
+# Configure DB_* variables and deploy once so Flyway creates the schema.
+# Optional demo records after successful startup:
+mysql -u root -p library_management < database/sample_data.sql
 ```
 
 ## Configuration
@@ -125,7 +130,10 @@ mysql -u root -p < database/sample_data.sql
 Set environment variables in the process that starts Tomcat. Do not commit real credentials.
 
 ```text
-DB_URL=jdbc:mysql://localhost:3306/library_management?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+DB_URL=jdbc:mysql://localhost:3306/library_management?serverTimezone=UTC&sslMode=DISABLED
+DB_MIGRATION_USERNAME=library_migrator
+DB_MIGRATION_PASSWORD=your-local-migration-password
+APP_ENV=development
 DB_USERNAME=library_app
 DB_PASSWORD=your-local-password
 LIBRARY_BORROW_DAYS=14
@@ -133,7 +141,9 @@ LIBRARY_BORROW_LIMIT=5
 LIBRARY_FINE_PER_DAY=5.00
 ```
 
-The first three variables configure JDBC. Circulation variables are optional and default to the values shown. For a hosted MySQL service, use its supplied host, database name, TLS options, username, and password.
+`DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` configure the application pool. Flyway uses `DB_MIGRATION_USERNAME` and `DB_MIGRATION_PASSWORD`, falling back to app credentials only when migration credentials are unset. Set `APP_ENV=production` to require a non-root app user, verified TLS in `DB_URL`, HTTPS redirects, and Secure session cookies. Use `sslMode=VERIFY_IDENTITY` with the database CA trust configuration in production. `TRUST_PROXY_TLS=true` is only for a reverse proxy that overwrites `X-Forwarded-Proto`; `PUBLIC_HTTPS_HOST` must contain the public DNS hostname. Pool variables: `DB_POOL_MAX_SIZE` (10), `DB_POOL_MIN_IDLE` (2), `DB_POOL_CONNECTION_TIMEOUT_MS` (30000), `DB_POOL_IDLE_TIMEOUT_MS` (600000), `DB_POOL_MAX_LIFETIME_MS` (1800000), and `DB_POOL_NAME` (`CampusLibraryPool`). Circulation variables are optional.
+
+Production grants are documented in `database/production_users.sql`; replace password placeholders using a secret manager. The app account receives DML rights, while `library_migrator` receives schema migration rights. Production MySQL accounts require SSL.
 
 ## Running the Project
 
@@ -193,10 +203,43 @@ See `RUBRIC_MAPPING.md` for exact source evidence against each mark category.
 
 ## Future Enhancements
 
-- Automated JDBC integration tests against a disposable MySQL database.
+- Expand operational dashboards and role-specific audit reporting.
 - Notification delivery and richer report filters.
 - Add optional production deployment documentation for a future hosting environment.
 
 ## Testing
 
 Run `mvn clean package` for automated checks. Follow `TESTING.md` for database-backed and browser workflows; those manual checks require a configured MySQL database and running Tomcat instance.
+
+
+## Flyway schema migrations
+
+Migrations live in `src/main/resources/db/migration` and run at application startup before services are published. `V1__initial_schema.sql` records the schema currently in `database/schema.sql`; `V2` adds audit storage and `V3` adds circulation/search indexes. A fresh database starts empty and Flyway applies all versions. For an existing installation, back up first, compare its tables/indexes with `database/schema.sql`, then deploy: Flyway baselines an untracked non-empty schema at version 1 and applies only later migrations. This baseline does not alter existing data. Startup fails closed if a migration fails. Do not enable Flyway clean or drop/reset a production database. Add future changes as new `V4__...sql` files.
+
+For local setup, create `library_management`, apply `database/local_users.sql` after replacing both local password placeholders, configure the environment, then deploy. Migration history is stored in `flyway_schema_history`. Optional demo SQL should run after migrations.
+
+## Integration tests (MySQL)
+
+JUnit 5 integration coverage is in `MySqlCirculationIntegrationTest`. It uses disposable MySQL 8 Testcontainers (not mocked JDBC) and checks parallel borrowing, returns and duplicate-return rejection, rollback after injected SQL failures, and same-day/3-day/10-day fine calculations. Tests clear and reseed their dedicated container before each test. They never connect to the development URL.
+
+Requirements: Docker Engine available to Testcontainers. Run all tests with `mvn clean test`; run only MySQL integration coverage with `mvn -Dtest=MySqlCirculationIntegrationTest test`. If Docker is unavailable, Testcontainers explicitly skips those tests; install/start Docker and rerun before relying on integration coverage. The current environment had no Docker executable, so these four MySQL tests were not executed here.
+
+## HTTPS/TLS and database permissions
+
+Set `APP_ENV=production`, `PUBLIC_HTTPS_HOST`, app and migration credentials, and a MySQL JDBC URL using `sslMode=VERIFY_IDENTITY` plus the CA trust configuration supplied by the database host. Do not use `useSSL=false`, `sslMode=DISABLED`, root credentials, or `allowPublicKeyRetrieval` in production. The startup checks reject root app credentials and URLs that do not request TLS. `OperationalFilter` redirects insecure HTTP to the configured HTTPS hostname. Terminate public TLS at Tomcat or a reverse proxy such as Caddy with an issued certificate and automatic renewal; if proxy termination is used, set `TRUST_PROXY_TLS=true` only when the proxy overwrites the forwarded protocol header. Keep Tomcat and MySQL private behind the proxy/firewall.
+
+Session cookies use HttpOnly and SameSite=Lax in all environments and Secure in production. Session timeout is 30 minutes. Login continues rotating the session ID, CSRF validation remains enabled, and logout invalidates the session.
+
+Production user grants are in `database/production_users.sql`: run as a DBA after replacing placeholders with secret-manager values. `library_app` has only SELECT/INSERT/UPDATE/DELETE; `library_migrator` is separate and has schema-change permissions. Supply `DB_MIGRATION_USERNAME`/`DB_MIGRATION_PASSWORD` to deployments so the restricted app user never runs DDL.
+
+## Monitoring, logs, and audit
+
+SLF4J with Logback emits timestamped level/logger/thread fields and key/value event messages to the container console. `OperationalFilter` records request method, path, response status, and duration (without query strings); startup/shutdown and failed requests are logged. A minute-level pool report records Hikari active, idle, total, and waiting connection counts. Hikari itself logs connection acquisition/timeouts. Do not add passwords, session IDs, tokens, or personal details to logs.
+
+The `audit_log` table records login success/failure, logout, borrow/return, overdue fine calculation, fine payment, book add/update/archive, and librarian application decisions with actor ID when known, action, entity ID, time, and outcome. It intentionally contains no credentials. Audit writes are made after successful business actions; monitor `audit_record_failed` log entries. Extend the audit calls alongside new admin workflows.
+
+## Performance testing
+
+Install Apache JMeter 5.6.3 or newer and open `performance/catalog-search.jmx`. Create a large non-production dataset (recommended starting profile: 50,000 books and 10,000 student accounts), deploy to a staging database, and use one dedicated test student per thread. Run a 20-user/60-second smoke profile first, then 100/300-user profiles while tracking Tomcat CPU/memory, MySQL query latency, and Hikari pool active/idle/waiting counts. The plan logs `results.jtl`; use JMeter Summary Report or `jmeter -n -t performance/catalog-search.jmx -JUSERS=100 -JHOLD_SECONDS=300 -l results.jtl -Jtest.email=... -Jtest.password=...`. Configure host/port/path to match staging before use.
+
+Record dataset size, user count, ramp-up, p50/p95/p99 latency, throughput, error rate, and pool wait/timeouts for each run. No performance measurements are claimed: the plan is a reproducible starting scenario, and load testing must run against a provisioned staging instance. Test borrow/return contention separately using unique seeded books/loans and clean/reset the staging dataset between runs; never load test production.

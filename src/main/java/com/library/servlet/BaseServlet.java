@@ -3,14 +3,14 @@ package com.library.servlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.*;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class BaseServlet extends HttpServlet {
-    private static final Logger LOG=Logger.getLogger(BaseServlet.class.getName());
+    private static final Logger LOG=LoggerFactory.getLogger(BaseServlet.class);
     protected <T> T service(Class<T> type){return type.cast(getServletContext().getAttribute(type.getName()));}
     protected void error(HttpServletRequest request,HttpServletResponse response,RuntimeException ex)throws ServletException,IOException{
-        LOG.log(Level.WARNING,"Request failed: "+request.getRequestURI(),ex);
+        LOG.warn("request_failed path={} exception={}",request.getRequestURI(),ex.getClass().getSimpleName(),ex);
         String message=ex instanceof com.library.exception.ValidationException||ex instanceof IllegalArgumentException||ex instanceof com.library.exception.AuthenticationException||ex instanceof com.library.exception.BookNotAvailableException?ex.getMessage():"The request could not be completed. Please try again.";
         request.setAttribute("errorMessage",message);
         request.getRequestDispatcher("/WEB-INF/views/error/error.jsp").forward(request,response);
