@@ -20,13 +20,13 @@ public class LibraryContextListener implements ServletContextListener {
         boolean production="production".equalsIgnoreCase(setting("APP_ENV","development"));
         if(production&&setting("PUBLIC_HTTPS_HOST","").isBlank())throw new IllegalStateException("PUBLIC_HTTPS_HOST must be configured in production.");
         var cookies=event.getServletContext().getSessionCookieConfig();
-        cookies.setHttpOnly(true); cookies.setSecure(production); cookies.setAttribute("SameSite","Lax");
-        cookies.setName("JSESSIONID");
+        configureSessionCookie(cookies,production);
         String url=setting("DB_URL","jdbc:mysql://localhost:3306/library_management?serverTimezone=UTC");
         String username=setting("DB_MIGRATION_USERNAME",setting("DB_USERNAME","library_app"));
         String password=setting("DB_MIGRATION_PASSWORD",setting("DB_PASSWORD",""));
         try {
             DBConnection.validateProductionConfiguration(url,setting("DB_USERNAME","library_app"));
+            DBConnection.validateProductionConfiguration(url,username);
             Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration")
                 .baselineOnMigrate(true).baselineVersion("1").load().migrate();
             DBConnection.initialize();
@@ -49,4 +49,5 @@ public class LibraryContextListener implements ServletContextListener {
     private <T> void put(jakarta.servlet.ServletContext context,Class<T> type,T value){context.setAttribute(type.getName(),value);}
     private int integer(String name,int fallback){try{return Integer.parseInt(setting(name,Integer.toString(fallback)));}catch(NumberFormatException e){throw new IllegalStateException(name+" must be an integer",e);}}
     private String setting(String name,String fallback){String value=System.getenv(name);return value==null||value.isBlank()?fallback:value;}
+    static void configureSessionCookie(jakarta.servlet.SessionCookieConfig cookies,boolean production){cookies.setHttpOnly(true);cookies.setSecure(production);cookies.setAttribute("SameSite","Lax");cookies.setName("JSESSIONID");}
 }

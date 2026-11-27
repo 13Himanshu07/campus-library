@@ -1,90 +1,65 @@
-# Testing and verification checklist
+# Testing and verification
 
-Run automated unit checks and build with:
+## Automated checks
+
+From the repository root with JDK 17 and Maven:
 
 ```bash
-mvn clean package
+mvn clean test
+mvn package
 ```
 
-Start MySQL, import `database/schema.sql` and `database/sample_data.sql`, configure `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`, deploy `target/campus-library.war` to Tomcat 10.1+, and use the checklist below for database-backed checks.
+`mvn clean test` compiles all code, compiles JSPs, runs application/security/schema tests, and starts the MySQL Testcontainers class when Docker is available. The MySQL class has its own disposable MySQL 8 container, isolated schemas and fixtures; it does not use a developer or production DB URL. To run only that class:
 
-## Automated tests
+```bash
+mvn -Dtest=MySqlCirculationIntegrationTest test
+```
 
-- [x] Student/librarian subtype behavior through a `User` reference.
-- [x] BCrypt hashes and verifies passwords.
-- [x] Required-field and length validation overloads.
-- [ ] JDBC DAO integration against MySQL (requires configured MySQL test database).
+The integration tests verify two distinct Hikari pools borrowing the last copy, inventory/issue/audit consistency, duplicate returns, return/borrow rollback, fine amounts for same-day and overdue returns, fine payment persistence, paid-fine preservation during scheduled recalculation, restricted app/migrator grants, fresh Flyway migrations, existing-schema baselining with rows preserved, and safe failure when a migration collides with an existing index. Audit insert failures are injected to confirm the associated business transaction rolls back.
 
-## Manual web and JDBC checklist
+Without Docker, Testcontainers reports those database tests skipped; this is not a pass for MySQL behavior. In that case, install/start Docker and rerun the integration command. The local developer environment used for this audit has no Docker/MySQL executable, so it cannot execute the container tests or verify live MySQL grants. GitHub Actions runs `mvn clean test` on an Ubuntu runner with Docker and validates production Compose rendering.
 
-- [ ] Register a student with valid details; verify BCrypt hash, role, and membership ID in `users`.
-- [ ] Submit a librarian application; verify it is pending, cannot sign in while pending, and an administrator can approve or reject it.
-- [ ] Sign in with valid credentials; verify role-aware dashboard and session attributes.
-- [ ] Sign in with an invalid password; verify generic rejection and no authenticated session.
-- [ ] Submit a librarian POST without a session; verify redirect to login.
-- [ ] Sign out; verify session invalidation and protected-page redirect.
-- [ ] Change a password while signed in; verify the new BCrypt hash works and the old password no longer authenticates.
-- [ ] Allow a session to expire (30 minutes idle); verify protected pages require sign-in again.
-- [ ] Add a book; verify category, copy totals, and available totals.
-- [ ] Edit a book; verify metadata and copy-count constraints while copies are on loan.
-- [ ] Archive a book with no open loans; verify it leaves the catalog.
-- [ ] Attempt to archive a book with an open loan; verify rejection and unchanged inventory.
-- [ ] Search by title, author, ISBN, and category; try a quote/wildcard input and verify it stays parameterized.
-- [ ] Issue an available book as a student; verify issue row, due date, and one-copy decrement commit together.
-- [ ] Issue an unavailable book and issue beyond the five-book limit; verify clear rejection and no partial writes.
-- [ ] Attempt duplicate active issue of the same title; verify rejection.
-- [ ] Return a book as a librarian; verify return date, status, stock increment, and transaction commit.
-- [ ] Return a book that is past due; verify fine = late days × configured per-day rate and fine row creation.
-- [ ] Mark an unpaid fine paid; verify paid state and paid timestamp.
-- [ ] Verify overdue counts and dashboard totals against SQL table contents.
-- [ ] Attempt to access librarian pages as a student; verify HTTP 403.
-- [ ] Submit an authenticated POST without a valid CSRF token; verify HTTP 403.
-- [ ] Stop MySQL and submit a database-backed request; verify a safe error page and a logged server-side exception.
+## Database/migration verification
 
-## Verified environment
+- `SchemaMigrationConsistencyTest` normalizes and compares `database/schema.sql` with Flyway V1.
+- Fresh MySQL migration coverage checks V1–V4 and `flyway_schema_history`.
+- Existing database coverage applies V1, inserts a sentinel row, removes migration history to model an existing untracked install, then checks baseline plus V2–V4 leave that row intact.
+- Failure coverage forces V3 to collide with an existing index, verifies Flyway fails, and verifies original user data remains.
+- App and migration grants are inspected with `SHOW GRANTS`; test app DAO operations run using the restricted application account.
 
-- Java: 26.0.2
-- Maven: 3.9.16
-- MySQL Community Server: 8.0.46
-- Apache Tomcat: 10.1.60
-- Packaging: WAR
-- Application URL: http://localhost:8080/campus-library/
+For a real deployment, back up and compare schema before startup. Flyway baselines a non-empty database at V1 and applies later migrations. It does not drop/reset data. New changes must be new versioned SQL files. Use `flyway_schema_history` to inspect applied versions.
 
-## Verified automated results
+## Security checks
 
-- `mvn clean package`: BUILD SUCCESS
-- `mvn test`: 4 tests passed, 0 failures, 0 errors, 0 skipped
-- JSP compilation check: 0 errors
-- MySQL Connector/J included in the generated WAR
+Unit tests verify production rejects root app credentials and unverified/disabled TLS, development remains compatible with local HTTP, security headers include CSP `frame-ancestors`, `nosniff`, and referrer policy, HSTS appears only for production HTTPS, and production session cookies are Secure/HttpOnly/SameSite=Lax. `DeploymentSecurityConfigTest` checks the production Compose configuration for `APP_ENV=production`, HTTPS host, verified MySQL TLS, split credentials, and absence of insecure JDBC options.
 
-## Verified manual workflows
+Before deploying, render Compose configuration:
 
-- Student login and role-based dashboard: PASS
-- Student book browsing and search: PASS
-- Student book issue/request: PASS
-- My Books and borrowing history: PASS
-- Student fines page: PASS
-- Librarian dashboard: PASS
-- Librarian add/edit/remove book: PASS
-- Librarian category management: PASS
-- Librarian member management: PASS
-- Librarian issue and return workflow: PASS
-- Admin login and dashboard: PASS
-- Admin applications page: PASS
-- Authentication and authorization flows: PASS
-- UTF-8 character and icon rendering: PASS
-- Database-backed transactions: PASS
+```bash
+docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml config --quiet
+```
 
-## Final verification
+After deployment, verify public HTTP redirects to HTTPS, the browser sees Secure/HttpOnly/SameSite=Lax on `JSESSIONID`, response CSP/HSTS headers are present over HTTPS, and Caddy renews its certificate. Verify MySQL TLS with the server status/session variables and inspect exact account grants using the instructions in `deployment/oracle/README.md`.
 
-The application was deployed to Apache Tomcat 10.1.60 and tested through the browser after the final UI, UTF-8, and JDBC connection fixes. The tested Java Web version is committed to the `main` branch.
+## Manual application smoke checks
 
-## Current MySQL integration coverage
+On local development, create an empty `library_management` database and restricted local accounts using `database/local_users.sql`, configure `DB_*`, deploy the WAR to Tomcat 10.1, and let Flyway migrate it. Optionally load `database/sample_data.sql` after migration. Then verify:
 
-`MySqlCirculationIntegrationTest` is a JUnit 5/Testcontainers suite against disposable MySQL 8. It covers parallel attempts to borrow the final copy, successful and duplicate returns, rollback on injected inventory failures, and same-day/3-day/10-day fine outcomes. Run it with `mvn -Dtest=MySqlCirculationIntegrationTest test` on a machine with Docker. The normal `mvn clean test` includes it; without Docker it is explicitly skipped (four skipped tests), while unit and JSP checks still run.
+- Register/login/logout, session rotation, 30-minute idle expiry, CSRF rejection, and role-based authorization.
+- Catalog search by title, author, ISBN, and category.
+- Borrowing available/unavailable books; return once; verify inventory, loan state, and fine amount.
+- Fine payment and admin/librarian book/member workflows.
+- A stopped database returns a safe user error and logs server-side failure without credentials or tokens.
 
-Do not point these tests at development or production data. The container creates an isolated schema, applies Flyway migrations, seeds fixtures before each test, and is discarded afterwards.
+## Performance plans
 
-## Migration and security notes
+Apache JMeter plans live under `performance/`:
 
-Flyway resources are in `src/main/resources/db/migration`. Fresh DBs apply V1 through V3; an existing non-empty schema is baselined at v1 and receives only later migrations. Back up and compare schema before first deployment; startup stops when migration fails. Production uses separate migration and app users from `database/production_users.sql`, with TLS required for MySQL accounts. Production HTTPS enforcement and cookie settings are environment controlled as described in README.
+- `catalog-search-50-users.jmx`
+- `catalog-search-100-users.jmx`
+- `catalog-search-500-users-stress.jmx`
+- `circulation-borrow-return.jmx`
+
+Use a staging copy with at least 10,000 book rows and fixture accounts. Circulation needs a private CSV with unique test rows for the selected thread count, distinct available book IDs, active loan IDs to return, and student/librarian credentials. Do not commit the CSV or run load tests against production. Commands, dataset sizing, setup, and result collection are documented in README.
+
+JMeter has not been run during this audit, so no latency, p95, throughput, error-rate, or pool-utilization measurements are claimed. Save the `.jtl`, JMeter HTML dashboard, dataset dimensions, thread/ramp/hold settings, and Hikari active/idle/waiting observations for each run.

@@ -1,4 +1,4 @@
-name: Build Java web application
+name: Build, integration test, and package
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  package:
+  test-and-package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +20,46 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - name: Build and test WAR
-        run: mvn --batch-mode clean package
+      - name: Run unit, security, schema, and MySQL Testcontainers tests
+        run: mvn --batch-mode clean test
+      - name: Package WAR
+        run: mvn --batch-mode -DskipTests package
+      - name: Validate production Compose configuration
+        run: docker compose --env-file deployment/oracle/.env.example -f deployment/oracle/compose.yaml config --quiet
+      - name: Create isolated production smoke credentials
+        shell: bash
+        run: |
+          {
+            echo "PUBLIC_DOMAIN=localhost"
+            echo "MYSQL_ROOT_PASSWORD=$(openssl rand -hex 32)"
+            echo "DB_PASSWORD=$(openssl rand -hex 32)"
+            echo "DB_MIGRATION_PASSWORD=$(openssl rand -hex 32)"
+            echo "LIBRARY_BORROW_DAYS=14"
+            echo "LIBRARY_BORROW_LIMIT=5"
+            echo "LIBRARY_FINE_PER_DAY=5.00"
+          } > deployment/oracle/.env
+      - name: Start production application with MySQL TLS and migrations
+        shell: bash
+        run: |
+          compose=(docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml)
+          "${compose[@]}" up -d --build database api
+          for attempt in {1..90}; do
+            if "${compose[@]}" logs api 2>&1 | grep -q 'application_startup database_migrations=complete'; then
+              echo "Production-mode Tomcat startup and Flyway migration succeeded."
+              exit 0
+            fi
+            container=$("${compose[@]}" ps -aq api)
+            if [ -n "$container" ] && [ "$(docker inspect --format '{{.State.Status}}' "$container")" != "running" ]; then
+              "${compose[@]}" logs database api
+              exit 1
+            fi
+            sleep 2
+          done
+          "${compose[@]}" logs database api
+          exit 1
+      - name: Stop production smoke stack
+        if: always()
+        run: docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml down -v || true
       - name: Save WAR artifact
         uses: actions/upload-artifact@v4
         with:

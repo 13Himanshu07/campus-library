@@ -1,37 +1,48 @@
-# Tomcat + MySQL on an Oracle Cloud VM
+# Campus Library on Oracle Cloud (production Compose)
 
-This Compose deployment runs the Java web application on Apache Tomcat 10.1, MySQL 8, and Caddy for HTTPS. Tomcat and MySQL are private to the Compose network; only ports 80 and 443 are published.
+The Compose stack runs Tomcat 10.1, MySQL 8, and Caddy. Only Caddy publishes ports 80/443; Tomcat and MySQL stay on the private Compose network. APP_ENV is explicitly production. Caddy provisions public HTTPS; the servlet filter redirects HTTP to `PUBLIC_HTTPS_HOST`, sets HSTS for HTTPS requests, and issues Secure/HttpOnly/SameSite=Lax session cookies.
 
-## Prepare the VM
+## Prepare and provision
 
-- Use an Ubuntu 24.04 VM and install Docker Engine plus the Docker Compose plugin.
-- Allow inbound TCP 22 from your own IP, and TCP 80/443 for web traffic. Keep 3306 and 8080 closed externally.
-- Point a DNS `A` record for a domain you control at the VM's public IPv4 address.
-- Copy the project to the VM. Build the WAR before building the container image.
+- Use an Ubuntu VM with Docker Engine and the Compose plugin.
+- Allow TCP 22 from administrator IPs and TCP 80/443. Keep 3306 and 8080 private.
+- Point the public DNS A record at the VM.
+- Build the WAR with JDK 17 and Maven.
 
-## Configure and start
-
-From the project root:
+From the repository root:
 
 ```bash
 mvn clean package
 cp deployment/oracle/.env.example deployment/oracle/.env
+openssl rand -hex 32
 ```
 
-Edit `deployment/oracle/.env` with your DNS name and strong unique MySQL passwords. Then run:
+Replace `PUBLIC_DOMAIN` and generate three independent hexadecimal secrets for `MYSQL_ROOT_PASSWORD`, `DB_PASSWORD`, and `DB_MIGRATION_PASSWORD`. The bootstrap script accepts hexadecimal passwords so the values can be safely inserted into MySQL account statements. Keep `.env` private.
+
+Start the production stack:
 
 ```bash
 docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml up -d --build
 ```
 
-The database container initializes from `database/schema.sql` and loads the local demo catalog/accounts from `database/sample_data.sql` on its first start. The site is available at `https://<PUBLIC_DOMAIN>/`. The included demo accounts must be disabled or have their passwords changed before exposing the site to the public.
+On a fresh MySQL volume, the image enables `require_secure_transport`, creates the restricted `library_app` and `library_migrator` accounts, and exports the generated MySQL CA into the private `mysql_tls` volume. The Tomcat entrypoint imports that CA into a temporary PKCS12 truststore before starting. The app URL uses Connector/J `sslMode=VERIFY_CA`; production startup rejects root credentials and unverified/disabled MySQL TLS. Flyway creates a fresh schema and starts the application only after migration succeeds. No demo records are loaded automatically.
 
-View Tomcat and proxy logs with:
+The MySQL bootstrap creates only app DML grants and migrator schema grants, including DROP because Flyway V4 renames the audit table. Review `database/docker-bootstrap.sh`, `database/production_users.sql`, and check actual grants with `SHOW GRANTS FOR 'library_app'@'%';` and `SHOW GRANTS FOR 'library_migrator'@'%';`.
+
+## Existing MySQL volumes
+
+Initialization scripts run only for a new MySQL data directory. Before deploying this Compose change onto an existing volume, back up `mysql_data`, apply the reviewed grants from `database/production_users.sql` with the existing root account and configured production secrets, export the current `/var/lib/mysql/ca.pem` into the `mysql_tls` volume, then recreate the API container. The migration baseline preserves existing rows; compare schema to V1 first. Do not reset or remove the volume.
+
+## Operations
+
+The app log and Hikari pool metrics are available through:
 
 ```bash
-docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml logs -f api proxy
+docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml logs -f api proxy database
 ```
 
-## Updates and backup
+Caddy obtains and renews the public certificate. Back up `mysql_data` and the private `.env`/secret material according to your operations policy. For managed MySQL, use its CA and `sslMode=VERIFY_IDENTITY` (including JDBC truststore settings); do not disable certificate verification.
 
-After copying an updated source revision to the VM, rebuild the WAR and image with the commands above. Back up the `mysql_data` volume regularly. To apply schema changes to an existing database, back it up and apply a reviewed migration; initialization scripts run only when MySQL creates a new data directory.
+## Local development
+
+Use `APP_ENV=development`, local-only account grants in `database/local_users.sql`, and `sslMode=DISABLED` only on a trusted local network. Production cookie/TLS requirements do not change local HTTP behavior.

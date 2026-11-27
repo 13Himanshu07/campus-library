@@ -41,7 +41,10 @@ public final class DBConnection {
     }
 
     public static void validateProductionConfiguration(String url,String user) {
-        if (!"production".equalsIgnoreCase(setting("APP_ENV", "development"))) return;
+        validateProductionConfiguration("production".equalsIgnoreCase(setting("APP_ENV", "development")),url,user);
+    }
+    public static void validateProductionConfiguration(boolean production,String url,String user) {
+        if (!production) return;
         if ("root".equalsIgnoreCase(user)) throw new IllegalStateException("Production database user must not be root.");
         String normalized=url.toLowerCase(java.util.Locale.ROOT);
         if (normalized.contains("usessl=false") || normalized.contains("sslmode=disable"))

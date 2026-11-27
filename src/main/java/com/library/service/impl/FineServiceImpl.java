@@ -11,5 +11,6 @@ public class FineServiceImpl implements FineService {
     @Override public List<Fine> all(){return fines.findAll();}
     @Override public List<Fine> forUser(long userId){return fines.findForUser(userId);}
     @Override public void markPaid(long fineId){fines.markPaid(fineId);}
+    @Override public void markPaid(long fineId,Long actorUserId){fines.markPaid(fineId,actorUserId);}
     @Override public void accrueOverdue(long issueId,java.math.BigDecimal amount){fines.accrueOverdue(issueId,amount);}
 }

@@ -1,3 +1,5 @@
+-- Flyway is authoritative: V1 is mirrored here as a compatibility reference only.
+-- Production and fresh installations must use src/main/resources/db/migration.
 CREATE DATABASE IF NOT EXISTS library_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE library_management;
 

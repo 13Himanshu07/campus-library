@@ -37,14 +37,14 @@ Coverage: object-oriented concepts are used in live application paths rather tha
 
 | Requirement | Exact evidence |
 |---|---|
-| Connection / DriverManager | `src/main/java/com/library/util/DBConnection.java`. |
+| Centralized JDBC pool | `src/main/java/com/library/util/DBConnection.java` configures a single HikariCP pool; DAO connections are obtained there and returned with try-with-resources. |
 | PreparedStatement / ResultSet / SQLException | `dao/impl/UserDAOImpl.java`, `BookDAOImpl.java`, `CategoryDAOImpl.java`, `IssueDAOImpl.java`, `FineDAOImpl.java`, and `DashboardDAOImpl.java`. |
 | DAO pattern | DAO interfaces under `dao/` and direct JDBC implementations under `dao/impl/`. |
 | Search / CRUD | `BookDAOImpl` provides parameterized create, update, archive, find, list, and search operations; `UserDAOImpl` and `CategoryDAOImpl` handle their records. |
-| JDBC transactions | `IssueDAOImpl.issue()` and `returnBook()` disable auto-commit, lock/update rows, commit on success, and roll back on failure. |
-| Relational design | `database/schema.sql`: five tables, foreign keys, unique constraints, a copy-count check, and indexes. |
+| JDBC transactions | `IssueDAOImpl.issue()` and `returnBook()` disable auto-commit, lock/update rows, and commit business plus audit rows together; failures roll back both. `BookDAOImpl`, `FineDAOImpl`, and `UserDAOImpl` also commit their audit event with each successful mutation. |
+| Relational design | Flyway migrations under `src/main/resources/db/migration` create current business tables and `audit_logs`, with foreign keys and indexes. `database/schema.sql` mirrors V1 for comparison. |
 | Live statistics | `DashboardDAOImpl.statistics()` calculates dashboard totals with SQL aggregates. |
-| Repeatable database setup | `database/schema.sql`, `database/sample_data.sql`, and `database/reset_database.sql`. |
+| Repeatable database setup | Flyway V1–V4, `flyway_schema_history`, and disposable MySQL Testcontainers fixtures. |
 
 Coverage: JDBC is explicit; no ORM is in the runtime dependency graph. A live database is required for end-to-end DAO checks.
 
@@ -57,7 +57,22 @@ Coverage: JDBC is explicit; no ORM is in the runtime dependency graph. A live da
 | JSP/JSTL/EL | Public `index.jsp`, `login.jsp`, `register.jsp` and protected `WEB-INF/views/{student,librarian,admin,shared,error}` pages. Dynamic lists use JSTL; values use EL; no scriptlets. |
 | Authentication | `filter/AuthenticationFilter.java` protects authenticated routes; `LoginServlet` establishes session identity; `LogoutServlet` invalidates it. |
 | Authorization | `filter/AuthorizationFilter.java` enforces librarian/admin URL roles; state-changing servlet actions also validate role where member routes are shared. |
-| Session security | `HttpSession` stores user/role, login rotates the session ID, `web.xml` sets inactivity timeout, `CsrfFilter` checks authenticated form submissions. |
+| Session and response security | `HttpSession` stores user/role, login rotates the session ID, `LibraryContextListener` selects Secure/HttpOnly/SameSite cookies per environment, `CsrfFilter` checks authenticated POST forms, and `OperationalFilter` sets CSP, nosniff, referrer, and production HSTS headers. |
 | Request/view separation | Servlets prepare request attributes; JSPs render them; service layer owns workflow policy. |
 
 Coverage: traditional JSP/Servlet integration is direct and verifiable in source.
+
+
+## 5. Operational and production safeguards
+
+| Requirement | Exact evidence |
+|---|---|
+| Versioned schema change | `src/main/resources/db/migration/V1__initial_schema.sql` through `V4__rename_audit_log_to_audit_logs.sql`; `LibraryContextListener` migrates before registering services. |
+| Existing schema/data adoption | Flyway baseline config uses version 1; Testcontainers coverage verifies preserved rows and safe failure. |
+| Audit consistency | `AuditLog.insert(Connection, ...)` participates in each mutating DAO transaction; MySQL tests inject audit table failures and assert business rollback. |
+| Database privilege split | `database/docker-bootstrap.sh`, `database/local_users.sql`, and `database/production_users.sql` grant DML to the app user and schema changes to the migration user. Integration tests inspect grants and issue a book as the restricted app. |
+| Production HTTPS / MySQL TLS | `deployment/oracle/compose.yaml` sets APP_ENV=production and Caddy; MySQL requires secure transport and the Tomcat entrypoint imports its CA for Connector/J VERIFY_CA. |
+| HTTP response controls | `filter/OperationalFilter.java` emits CSP with frame-ancestors, X-Content-Type-Options, Referrer-Policy, and production HTTPS HSTS. |
+| Monitoring | Logback request timing and Hikari pool counts in `OperationalFilter`, `LibraryContextListener`, and `LibraryTaskExecutor`. |
+| Repeatable database/performance tests | `MySqlCirculationIntegrationTest`, `performance/*.jmx`, and `.github/workflows/build-war.yml`. |
+
