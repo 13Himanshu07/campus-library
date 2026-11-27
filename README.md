@@ -205,7 +205,7 @@ See `RUBRIC_MAPPING.md` for exact source evidence against each mark category.
 
 - Expand operational dashboards and role-specific audit reporting.
 - Notification delivery and richer report filters.
-- Add optional production deployment documentation for a future hosting environment.
+- Add deployment examples for additional hosting environments.
 
 ## Testing
 
@@ -214,7 +214,7 @@ Run `mvn clean package` for automated checks. Follow `TESTING.md` for database-b
 
 ## Flyway schema migrations
 
-Migrations live in `src/main/resources/db/migration` and run at application startup before services are published. `V1__initial_schema.sql` records the schema currently in `database/schema.sql`; `V2` adds audit storage and `V3` adds circulation/search indexes. A fresh database starts empty and Flyway applies all versions. For an existing installation, back up first, compare its tables/indexes with `database/schema.sql`, then deploy: Flyway baselines an untracked non-empty schema at version 1 and applies only later migrations. This baseline does not alter existing data. Startup fails closed if a migration fails. Do not enable Flyway clean or drop/reset a production database. Add future changes as new versioned migration files after V4.
+Migrations live in `src/main/resources/db/migration` and run at application startup before services are published. `V1__initial_schema.sql` records the schema currently in `database/schema.sql`; `V2` adds audit storage, `V3` adds circulation/search indexes, and `V4` renames the audit table to `audit_logs` without recreating it. A fresh database starts empty and Flyway applies all versions. For an existing installation, back up first, compare its tables/indexes with `database/schema.sql`, then deploy: Flyway baselines an untracked non-empty schema at version 1 and applies only later migrations. This baseline does not alter existing data. Startup fails closed if a migration fails. Do not enable Flyway clean or drop/reset a production database. Add future changes as new versioned migration files after V4.
 
 For local setup, create `library_management`, apply `database/local_users.sql` after replacing both local password placeholders, configure the environment, then deploy. Migration history is stored in `flyway_schema_history`. Optional demo SQL should run after migrations.
 
@@ -222,7 +222,7 @@ For local setup, create `library_management`, apply `database/local_users.sql` a
 
 JUnit 5 integration coverage is in `MySqlCirculationIntegrationTest`. It uses a disposable MySQL 8 Testcontainer (not mocked JDBC) and checks concurrent borrowing through separate Hikari pools, duplicate returns, business/audit rollback, fine durations and payments, already-paid fine stability under scheduled recalculation, app/migrator grants, fresh install, existing-schema baseline with preserved rows, and migration failure without data loss. Tests clear and reseed their dedicated container before each test. They never connect to the development URL.
 
-Requirements: Docker Engine available to Testcontainers. Run all tests with `mvn clean test`; run only MySQL integration coverage with `mvn -Dtest=MySqlCirculationIntegrationTest test`. If Docker is unavailable, Testcontainers explicitly skips those tests; install/start Docker and rerun before relying on integration coverage. The current environment had no Docker executable, so these Docker is required to execute the MySQL class.
+Requirements: Docker Engine available to Testcontainers. Run all tests with `mvn clean test`; run only MySQL integration coverage with `mvn -Dtest=MySqlCirculationIntegrationTest test`. If Docker is unavailable, Testcontainers explicitly skips those tests; install/start Docker and rerun before relying on integration coverage. Docker was unavailable in the environment used for this audit, so the MySQL class was skipped here.
 
 ## HTTPS/TLS and database permissions
 

@@ -17,7 +17,7 @@ mvn -Dtest=MySqlCirculationIntegrationTest test
 
 The integration tests verify two distinct Hikari pools borrowing the last copy, inventory/issue/audit consistency, duplicate returns, return/borrow rollback, fine amounts for same-day and overdue returns, fine payment persistence, paid-fine preservation during scheduled recalculation, restricted app/migrator grants, fresh Flyway migrations, existing-schema baselining with rows preserved, and safe failure when a migration collides with an existing index. Audit insert failures are injected to confirm the associated business transaction rolls back.
 
-Without Docker, Testcontainers reports those database tests skipped; this is not a pass for MySQL behavior. In that case, install/start Docker and rerun the integration command. The local developer environment used for this audit has no Docker/MySQL executable, so it cannot execute the container tests or verify live MySQL grants. GitHub Actions runs `mvn clean test` on an Ubuntu runner with Docker and validates production Compose rendering.
+Without Docker, Testcontainers reports those database tests skipped; this is not a pass for MySQL behavior. In that case, install/start Docker and rerun the integration command. The local developer environment used for this audit has no Docker/MySQL executable, so it cannot execute the container tests or verify live MySQL grants. GitHub Actions runs `mvn --batch-mode clean test`, packages the WAR, validates Compose rendering, and starts a production-mode Compose smoke stack with MySQL TLS and Flyway migrations on an Ubuntu runner with Docker.
 
 ## Database/migration verification
 
