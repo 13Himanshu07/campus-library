@@ -8,5 +8,8 @@ target/
 *.log
 *.class
 *.war
+performance/*.csv
+performance/results*.jtl
+performance/report-*/
 .idea/
 .vscode/

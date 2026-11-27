@@ -38,10 +38,12 @@ Coverage: object-oriented concepts are used in live application paths rather tha
 | Requirement | Exact evidence |
 |---|---|
 | Centralized JDBC pool | `src/main/java/com/library/util/DBConnection.java` configures a single HikariCP pool; DAO connections are obtained there and returned with try-with-resources. |
+| Pool configuration/lifecycle | `DBConnectionPoolConfigurationTest` checks pool size, min/max relationship, timeouts, and name validation; MySQL integration coverage verifies singleton behavior, physical connection reuse, and pool close. `LibraryContextListener.contextDestroyed()` shuts down the application pool. |
 | PreparedStatement / ResultSet / SQLException | `dao/impl/UserDAOImpl.java`, `BookDAOImpl.java`, `CategoryDAOImpl.java`, `IssueDAOImpl.java`, `FineDAOImpl.java`, and `DashboardDAOImpl.java`. |
 | DAO pattern | DAO interfaces under `dao/` and direct JDBC implementations under `dao/impl/`. |
 | Search / CRUD | `BookDAOImpl` provides parameterized create, update, archive, find, list, and search operations; `UserDAOImpl` and `CategoryDAOImpl` handle their records. |
 | JDBC transactions | `IssueDAOImpl.issue()` and `returnBook()` disable auto-commit, lock/update rows, and commit business plus audit rows together; failures roll back both. `BookDAOImpl`, `FineDAOImpl`, and `UserDAOImpl` also commit their audit event with each successful mutation. |
+| Concurrent circulation evidence | `MySqlCirculationIntegrationTest.independentApplicationPoolsCannotBorrowLastCopyTwice()` and `independentApplicationPoolsCannotReturnTheSameLoanTwice()` coordinate competing DAO calls on separate pools and assert persisted inventory, loan, fine, and audit values. |
 | Relational design | Flyway migrations under `src/main/resources/db/migration` create current business tables and `audit_logs`, with foreign keys and indexes. `database/schema.sql` mirrors V1 for comparison. |
 | Live statistics | `DashboardDAOImpl.statistics()` calculates dashboard totals with SQL aggregates. |
 | Repeatable database setup | Flyway V1–V4, `flyway_schema_history`, and disposable MySQL Testcontainers fixtures. |
@@ -74,5 +76,8 @@ Coverage: traditional JSP/Servlet integration is direct and verifiable in source
 | Production HTTPS / MySQL TLS | `deployment/oracle/compose.yaml` sets APP_ENV=production and Caddy; MySQL requires secure transport and the Tomcat entrypoint imports its CA for Connector/J VERIFY_CA. |
 | HTTP response controls | `filter/OperationalFilter.java` emits CSP with frame-ancestors, X-Content-Type-Options, Referrer-Policy, and production HTTPS HSTS. |
 | Monitoring | Logback request timing and Hikari pool counts in `OperationalFilter`, `LibraryContextListener`, and `LibraryTaskExecutor`. |
+| Readiness and correlated logs | `HealthServlet` exposes generic `/health/live` and database-backed `/health/ready` results; `OperationalFilter` creates `X-Request-ID`/MDC correlation and logs escaped request fields without query strings. `LogFieldsTest` guards log escaping. |
+| CI database execution gate | `.github/workflows/build-war.yml` runs `docker info`, then `scripts/verify-mysql-integration.py` requires at least 14 MySQL integration tests, zero skips, and zero failures/errors before packaging. |
+| JMeter scenario verification | `PerformancePlanTest` parses all search/circulation JMX plans and checks session cookies, endpoints, assertions, CSV uniqueness settings, and CSRF extraction. `performance/seed-large-dataset.sql` and `generate-circulation-csv.py` prepare isolated load fixtures. Measurements are explicitly not claimed until a staging run is performed. |
 | Repeatable database/performance tests | `MySqlCirculationIntegrationTest`, `performance/*.jmx`, and `.github/workflows/build-war.yml`. |
 

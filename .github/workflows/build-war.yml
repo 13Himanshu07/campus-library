@@ -20,10 +20,14 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
+      - name: Verify Docker availability for MySQL integration tests
+        run: docker info
       - name: Run unit, security, schema, and MySQL Testcontainers tests
         run: mvn --batch-mode clean test
+      - name: Require MySQL Testcontainers tests to execute without skips
+        run: python3 scripts/verify-mysql-integration.py target/surefire-reports/TEST-com.library.MySqlCirculationIntegrationTest.xml
       - name: Package WAR
-        run: mvn --batch-mode -DskipTests package
+        run: mvn --batch-mode package
       - name: Validate production Compose configuration
         run: docker compose --env-file deployment/oracle/.env.example -f deployment/oracle/compose.yaml config --quiet
       - name: Create isolated production smoke credentials
@@ -38,25 +42,40 @@ jobs:
             echo "LIBRARY_BORROW_LIMIT=5"
             echo "LIBRARY_FINE_PER_DAY=5.00"
           } > deployment/oracle/.env
-      - name: Start production application with MySQL TLS and migrations
+      - name: Start production application and Caddy with MySQL TLS
         shell: bash
         run: |
           compose=(docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml)
-          "${compose[@]}" up -d --build database api
+          "${compose[@]}" up -d --build database api proxy
+          started=false
           for attempt in {1..90}; do
             if "${compose[@]}" logs api 2>&1 | grep -q 'application_startup database_migrations=complete'; then
-              echo "Production-mode Tomcat startup and Flyway migration succeeded."
-              exit 0
+              started=true
+              break
             fi
             container=$("${compose[@]}" ps -aq api)
             if [ -n "$container" ] && [ "$(docker inspect --format '{{.State.Status}}' "$container")" != "running" ]; then
-              "${compose[@]}" logs database api
+              "${compose[@]}" logs database api proxy
               exit 1
             fi
             sleep 2
           done
-          "${compose[@]}" logs database api
-          exit 1
+          if [ "$started" != true ]; then
+            "${compose[@]}" logs database api proxy
+            exit 1
+          fi
+          code=""
+          for attempt in {1..30}; do
+            code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 http://localhost/health/ready || true)
+            if [ "$code" = "308" ]; then break; fi
+            sleep 2
+          done
+          test "$code" = "308"
+          curl --insecure --fail --silent --show-error --dump-header /tmp/campus-library-https-headers.txt https://localhost/health/ready --output /tmp/campus-library-health.json
+          grep -Eiq '^strict-transport-security: max-age=31536000' /tmp/campus-library-https-headers.txt
+          grep -Eiq '^content-security-policy: .*frame-ancestors .none.' /tmp/campus-library-https-headers.txt
+          grep -q '"status":"ready"' /tmp/campus-library-health.json
+          echo "Production MySQL TLS, Flyway startup, HTTP redirect, readiness, and HTTPS headers verified."
       - name: Stop production smoke stack
         if: always()
         run: docker compose --env-file deployment/oracle/.env -f deployment/oracle/compose.yaml down -v || true

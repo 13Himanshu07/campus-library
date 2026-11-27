@@ -30,8 +30,8 @@ public class LibraryContextListener implements ServletContextListener {
             Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration")
                 .baselineOnMigrate(true).baselineVersion("1").load().migrate();
             DBConnection.initialize();
-            LOG.info("application_startup database_migrations=complete db_pool={}",DBConnection.getDataSource().getPoolName());
-        } catch (RuntimeException e) { LOG.error("application_startup_failed database initialization failed"); throw e; }
+            LOG.info("application_startup database_migrations=complete db_pool={}",com.library.util.LogFields.quoted(DBConnection.getDataSource().getPoolName()));
+        } catch (RuntimeException e) { LOG.error("application_startup_failed event=\"database_initialization\" exception_type=\"{}\"",com.library.util.LogFields.quoted(e.getClass().getSimpleName())); throw e; }
         var context=event.getServletContext();
         put(context,UserService.class,new UserServiceImpl(new UserDAOImpl()));
         BookService books=new BookServiceImpl(new BookDAOImpl());
@@ -45,7 +45,7 @@ public class LibraryContextListener implements ServletContextListener {
         put(context,CategoryService.class,new CategoryServiceImpl(new CategoryDAOImpl()));
         put(context,DashboardService.class,new DashboardServiceImpl(new DashboardDAOImpl()));
     }
-    @Override public void contextDestroyed(ServletContextEvent event){if(taskExecutor!=null)taskExecutor.close();DBConnection.shutdown();LOG.info("application_shutdown");}
+    @Override public void contextDestroyed(ServletContextEvent event){if(taskExecutor!=null)taskExecutor.close();DBConnection.shutdown();LOG.info("application_shutdown event=\"complete\"");}
     private <T> void put(jakarta.servlet.ServletContext context,Class<T> type,T value){context.setAttribute(type.getName(),value);}
     private int integer(String name,int fallback){try{return Integer.parseInt(setting(name,Integer.toString(fallback)));}catch(NumberFormatException e){throw new IllegalStateException(name+" must be an integer",e);}}
     private String setting(String name,String fallback){String value=System.getenv(name);return value==null||value.isBlank()?fallback:value;}
