@@ -132,6 +132,19 @@ class MySqlCirculationIntegrationTest {
         } finally {adminExecute("DROP TRIGGER library_management_test.fail_audit");}
     }
 
+    @Test void auditFailureDuringReturnRollsBackLoanInventoryAndFineTogether() throws Exception {
+        long issueId=insertIssue(2,1,LocalDate.now().minusDays(3));
+        adminExecute("CREATE TRIGGER fail_audit BEFORE INSERT ON library_management_test.audit_logs FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='injected audit failure'");
+        try {
+            assertThrows(RuntimeException.class,()->DAO.returnBook(issueId,new BigDecimal("15.00"),3L));
+            assertEquals("ISSUED",value("SELECT status FROM book_issues WHERE id="+issueId));
+            assertNull(value("SELECT return_date FROM book_issues WHERE id="+issueId));
+            assertEquals(3,scalar("SELECT available_copies FROM books WHERE id=2"));
+            assertEquals(0,scalar("SELECT COUNT(*) FROM fines WHERE issue_id="+issueId));
+            assertEquals(0,scalar("SELECT COUNT(*) FROM audit_logs WHERE action='BOOK_RETURN' AND entity_id='"+issueId+"'"));
+        } finally {adminExecute("DROP TRIGGER library_management_test.fail_audit");}
+    }
+
     @Test void businessSqlFailuresRollBackBorrowAndReturn() throws Exception {
         adminExecute("CREATE TRIGGER fail_inventory BEFORE UPDATE ON library_management_test.books FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='injected inventory failure'");
         try {assertThrows(RuntimeException.class,()->DAO.issue(2,1,14,5));assertEquals(0,scalar("SELECT COUNT(*) FROM book_issues"));assertEquals(4,scalar("SELECT available_copies FROM books WHERE id=2"));}

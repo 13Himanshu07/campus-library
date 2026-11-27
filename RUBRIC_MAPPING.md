@@ -43,7 +43,7 @@ Coverage: object-oriented concepts are used in live application paths rather tha
 | DAO pattern | DAO interfaces under `dao/` and direct JDBC implementations under `dao/impl/`. |
 | Search / CRUD | `BookDAOImpl` provides parameterized create, update, archive, find, list, and search operations; `UserDAOImpl` and `CategoryDAOImpl` handle their records. |
 | JDBC transactions | `IssueDAOImpl.issue()` and `returnBook()` disable auto-commit, lock/update rows, and commit business plus audit rows together; failures roll back both. `BookDAOImpl`, `FineDAOImpl`, and `UserDAOImpl` also commit their audit event with each successful mutation. |
-| Concurrent circulation evidence | `MySqlCirculationIntegrationTest.independentApplicationPoolsCannotBorrowLastCopyTwice()` and `independentApplicationPoolsCannotReturnTheSameLoanTwice()` coordinate competing DAO calls on separate pools and assert persisted inventory, loan, fine, and audit values. |
+| Concurrent circulation evidence | `MySqlCirculationIntegrationTest.independentApplicationPoolsCannotBorrowLastCopyTwice()` and `independentApplicationPoolsCannotReturnTheSameLoanTwice()` coordinate competing DAO calls on separate pools and assert persisted inventory, loan, fine, and audit values. The suite has 15 MySQL test cases, including return-audit failure rollback. |
 | Relational design | Flyway migrations under `src/main/resources/db/migration` create current business tables and `audit_logs`, with foreign keys and indexes. `database/schema.sql` mirrors V1 for comparison. |
 | Live statistics | `DashboardDAOImpl.statistics()` calculates dashboard totals with SQL aggregates. |
 | Repeatable database setup | Flyway V1–V4, `flyway_schema_history`, and disposable MySQL Testcontainers fixtures. |
